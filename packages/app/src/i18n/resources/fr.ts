@@ -2221,6 +2221,10 @@ export const fr: TranslationResources = {
     shortcuts: {
       dialogTitle: "Raccourcis",
       searchPlaceholder: "Rechercher des raccourcis",
+      filter: {
+        byShortcut: "Rechercher par raccourci",
+        clear: "Afficher tous les raccourcis",
+      },
       unavailableOnMobile: "Les raccourcis clavier ne sont disponibles que sur le bureau",
       capturePrompt: "Appuyez sur le raccourci...",
       unassigned: "Non défini",

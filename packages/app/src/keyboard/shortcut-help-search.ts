@@ -1,4 +1,10 @@
-import type { KeyboardShortcutHelpSection } from "@/keyboard/keyboard-shortcuts";
+import { scoreTextFields } from "@getpaseo/protocol/search/text-match";
+import type { ShortcutOverrides } from "@/keyboard/keyboard-shortcuts";
+import {
+  resolveShortcutKeysForAction,
+  type KeyboardShortcutHelpSection,
+} from "@/keyboard/keyboard-shortcuts";
+import { chordsEqual } from "@/keyboard/shortcut-string";
 import { formatShortcut, type ShortcutKey, type ShortcutOs } from "@/utils/format-shortcut";
 
 /** Resolves an i18n key to display text. The caller's `t`, injected. */
@@ -74,17 +80,85 @@ export function filterShortcutHelpSections({
     }
 
     const rows = section.rows.filter((row) => {
-      const searchText = [
-        translate(row.labelKey),
-        row.noteKey ? translate(row.noteKey) : row.note,
-        row.chord ? shortcutSearchText(row.chord, shortcutOs) : null,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLocaleLowerCase();
-      return searchText.includes(normalizedQuery);
+      const { keysField, labelFields } = rowSearchFields(row, translate, shortcutOs);
+      const searchText = [...labelFields, keysField ?? ""].join(" ");
+      return searchText.toLocaleLowerCase().includes(normalizedQuery);
     });
 
+    return rows.length > 0 ? [{ ...section, rows }] : [];
+  });
+}
+
+/** Everything one row can be found by: its label and note, and every spelling of its keys. */
+function rowSearchFields(
+  row: KeyboardShortcutHelpSection["rows"][number],
+  translate: TranslateHelpKey,
+  shortcutOs: ShortcutOs,
+): { labelFields: string[]; keysField: string | null } {
+  const labelFields = [
+    translate(row.labelKey),
+    row.noteKey ? translate(row.noteKey) : row.note,
+  ].filter((field): field is string => typeof field === "string" && field.length > 0);
+  const keysField = row.chord ? shortcutSearchText(row.chord, shortcutOs) : null;
+  return { labelFields, keysField };
+}
+
+/**
+ * The settings page's filter. Labels and notes match with the shared tiered
+ * scorer, so a subsequence ("nwsp" → "New workspace") and small typos
+ * ("workspcae") still land. The keys text is matched strictly — the whole
+ * query as one substring — because subsequence and typo tolerance over the
+ * alias expansion make "cmd+n" hit "cmd+shift+k" text, which would resurface
+ * a row by keys the user rebound away from; that guarantee is why
+ * `filterShortcutHelpSections` matches substrings in the first place.
+ */
+export function searchShortcutHelpSections({
+  sections,
+  query,
+  translate,
+  shortcutOs,
+}: {
+  sections: readonly KeyboardShortcutHelpSection[];
+  query: string;
+  translate: TranslateHelpKey;
+  shortcutOs: ShortcutOs;
+}): KeyboardShortcutHelpSection[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return [...sections];
+
+  return sections.flatMap((section) => {
+    const rows = section.rows.filter((row) => {
+      const { keysField, labelFields } = rowSearchFields(row, translate, shortcutOs);
+      if (keysField !== null && keysField.toLocaleLowerCase().includes(normalizedQuery)) {
+        return true;
+      }
+      return scoreTextFields(normalizedQuery, labelFields, { typoTolerant: true }) !== null;
+    });
+    return rows.length > 0 ? [{ ...section, rows }] : [];
+  });
+}
+
+/**
+ * Narrow to the rows whose effective chord (default, or the user's override)
+ * is exactly the captured one. This is the settings page's "search by
+ * shortcut" mode; a row with no keys left can never match.
+ */
+export function filterShortcutHelpSectionsByChord({
+  sections,
+  chord,
+  overrides,
+  platform,
+}: {
+  sections: readonly KeyboardShortcutHelpSection[];
+  chord: ShortcutKey[][];
+  overrides: ShortcutOverrides;
+  platform: { isMac: boolean; isDesktop: boolean };
+}): KeyboardShortcutHelpSection[] {
+  return sections.flatMap((section) => {
+    const rows = section.rows.filter((row) => {
+      const resolved = resolveShortcutKeysForAction(row.id, overrides, platform);
+      return resolved !== null && chordsEqual(resolved, chord);
+    });
     return rows.length > 0 ? [{ ...section, rows }] : [];
   });
 }

@@ -2286,6 +2286,10 @@ export const en = {
     shortcuts: {
       dialogTitle: "Shortcuts",
       searchPlaceholder: "Search shortcuts",
+      filter: {
+        byShortcut: "Search by shortcut",
+        clear: "Show all shortcuts",
+      },
       unavailableOnMobile: "Keyboard shortcuts are only available on desktop",
       capturePrompt: "Press shortcut...",
       unassigned: "Not set",

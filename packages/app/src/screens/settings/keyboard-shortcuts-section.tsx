@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View, Text, type PressableStateCallbackType } from "react-native";
+import { View, Text, Pressable, type PressableStateCallbackType } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { MoreHorizontal, Pencil, Undo2, X } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -14,8 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SearchField } from "@/components/ui/search-field";
 import { Shortcut } from "@/components/ui/shortcut";
+import { ShortcutSequence } from "@/components/ui/shortcut-sequence";
 import { useKeyboardShortcutOverrides } from "@/hooks/use-keyboard-shortcut-overrides";
+import { useComboCapture } from "@/hooks/use-combo-capture";
 import {
   buildKeyboardShortcutHelpSections,
   getBindingIdForAction,
@@ -24,16 +27,16 @@ import {
   type KeyboardShortcutHelpRow,
 } from "@/keyboard/keyboard-shortcuts";
 import {
-  comboStringToShortcutKeys,
-  heldModifiersFromEvent,
-  keyboardEventToComboString,
-} from "@/keyboard/shortcut-string";
+  filterShortcutHelpSectionsByChord,
+  searchShortcutHelpSections,
+} from "@/keyboard/shortcut-help-search";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { getShortcutOs } from "@/utils/shortcut-platform";
 import { getIsElectronRuntime } from "@/constants/layout";
 import { isNative } from "@/constants/platform";
 import { getDesktopHost } from "@/desktop/host";
+import { ShortcutSearchDialog } from "@/screens/settings/shortcut-search-dialog";
 
 const EMPTY_CAPTURED_COMBOS: string[] = [];
 
@@ -49,28 +52,11 @@ const bindLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColorMa
 const clearLeadingIcon = <ThemedX size={14} uniProps={foregroundMutedColorMapping} />;
 const resetLeadingIcon = <ThemedUndo2 size={14} uniProps={foregroundMutedColorMapping} />;
 
-function ShortcutSequence({
-  chord,
-  heldModifiers,
-}: {
-  chord: string[] | null;
-  heldModifiers: string | null;
-}) {
-  const { t } = useTranslation();
-  const displayChord = useMemo(() => {
-    const combos = [...(chord ?? [])];
-    if (heldModifiers) {
-      combos.push(heldModifiers);
-    }
-    return combos.map(comboStringToShortcutKeys);
-  }, [chord, heldModifiers]);
-
-  if ((!chord || chord.length === 0) && !heldModifiers) {
-    return <Text style={styles.capturingText}>{t("settings.shortcuts.capturePrompt")}</Text>;
-  }
-
-  return <Shortcut chord={displayChord} />;
-}
+/** Text filter and shortcut filter are mutually exclusive by construction. */
+type ShortcutListFilter =
+  | { kind: "none" }
+  | { kind: "text"; query: string }
+  | { kind: "combo"; chord: ShortcutKey[][] };
 
 interface ShortcutRowContainerProps {
   row: KeyboardShortcutHelpRow;
@@ -326,33 +312,39 @@ function ShortcutRow({
 export function KeyboardShortcutsSection() {
   const { t } = useTranslation();
   const [capturingBindingId, setCapturingBindingId] = useState<string | null>(null);
-  const [capturedCombos, setCapturedCombos] = useState<string[]>([]);
-  const [heldModifiers, setHeldModifiers] = useState<string | null>(null);
+  const {
+    combos: capturedCombos,
+    heldModifiers: capturedHeldModifiers,
+    reset: resetCapture,
+  } = useComboCapture(capturingBindingId !== null);
+  const [query, setQuery] = useState("");
+  const [comboChord, setComboChord] = useState<ShortcutKey[][] | null>(null);
+  const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const { overrides, hasOverrides, setOverride, clearOverride, removeOverride, resetAll } =
     useKeyboardShortcutOverrides();
   const setCapturingShortcut = useKeyboardShortcutsStore((s) => s.setCapturingShortcut);
   const capturing = useKeyboardShortcutsStore((s) => s.capturingShortcut);
 
   const isFocused = useIsFocused();
-  const isMac = getShortcutOs() === "mac";
+  const shortcutOs = getShortcutOs();
+  const isMac = shortcutOs === "mac";
   const isDesktopApp = getIsElectronRuntime();
-  const sections = buildKeyboardShortcutHelpSections({ isMac, isDesktop: isDesktopApp });
+  const platform = useMemo(() => ({ isMac, isDesktop: isDesktopApp }), [isDesktopApp, isMac]);
+  const sections = buildKeyboardShortcutHelpSections(platform);
 
   const cancelCapture = useCallback(() => {
-    setCapturedCombos([]);
-    setHeldModifiers(null);
+    resetCapture();
     setCapturingBindingId(null);
     setCapturingShortcut(false);
-  }, [setCapturingShortcut]);
+  }, [resetCapture, setCapturingShortcut]);
 
   const startCapture = useCallback(
     (bindingId: string) => {
-      setCapturedCombos([]);
-      setHeldModifiers(null);
+      resetCapture();
       setCapturingBindingId(bindingId);
       setCapturingShortcut(true);
     },
-    [setCapturingShortcut],
+    [resetCapture, setCapturingShortcut],
   );
 
   const saveCapture = useCallback(() => {
@@ -368,36 +360,6 @@ export function KeyboardShortcutsSection() {
       cancelCapture();
     }
   }, [isFocused, capturingBindingId, cancelCapture]);
-
-  useEffect(() => {
-    if (isNative) return;
-    if (capturingBindingId === null) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const key = event.key ?? "";
-      if (key === "Backspace") {
-        setCapturedCombos((current) => (current.length > 0 ? current.slice(0, -1) : current));
-        return;
-      }
-
-      const comboString = keyboardEventToComboString(event);
-      if (comboString === null) {
-        setHeldModifiers(heldModifiersFromEvent(event));
-        return;
-      }
-
-      setHeldModifiers(null);
-      setCapturedCombos((current) => [...current, comboString]);
-    }
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [capturingBindingId]);
 
   useEffect(() => {
     return () => {
@@ -426,11 +388,62 @@ export function KeyboardShortcutsSection() {
     [removeOverride],
   );
 
+  // Typing always switches to the text filter; confirming the dialog always
+  // switches to the chord filter. The two cannot be active together.
+  const handleFilterTextChange = useCallback((text: string) => {
+    setComboChord(null);
+    setQuery(text);
+  }, []);
+
+  const clearShortcutFilter = useCallback(() => setComboChord(null), []);
+
+  const openSearchDialog = useCallback(() => {
+    if (capturingBindingId !== null) {
+      cancelCapture();
+    }
+    setIsSearchDialogOpen(true);
+  }, [capturingBindingId, cancelCapture]);
+
+  const handleShortcutSearch = useCallback((chord: ShortcutKey[][]) => {
+    setIsSearchDialogOpen(false);
+    setQuery("");
+    setComboChord(chord);
+  }, []);
+
+  const closeSearchDialog = useCallback(() => setIsSearchDialogOpen(false), []);
+
+  const filter = useMemo<ShortcutListFilter>(() => {
+    if (comboChord) return { kind: "combo", chord: comboChord };
+    if (query) return { kind: "text", query };
+    return { kind: "none" };
+  }, [comboChord, query]);
+
+  const visibleSections = useMemo(() => {
+    switch (filter.kind) {
+      case "none":
+        return sections;
+      case "text":
+        return searchShortcutHelpSections({
+          sections,
+          query: filter.query,
+          translate: t,
+          shortcutOs,
+        });
+      case "combo":
+        return filterShortcutHelpSectionsByChord({
+          sections,
+          chord: filter.chord,
+          overrides,
+          platform,
+        });
+    }
+  }, [filter, sections, t, shortcutOs, overrides, platform]);
+
   if (isNative) {
     return (
       <SettingsSection title={t("settings.sections.shortcuts")}>
-        <View style={[settingsStyles.card, styles.mobileCard]}>
-          <Text style={styles.mobileText}>{t("settings.shortcuts.unavailableOnMobile")}</Text>
+        <View style={[settingsStyles.card, styles.emptyCard]}>
+          <Text style={styles.emptyText}>{t("settings.shortcuts.unavailableOnMobile")}</Text>
         </View>
       </SettingsSection>
     );
@@ -444,51 +457,91 @@ export function KeyboardShortcutsSection() {
 
   return (
     <>
-      {sections.map(function (section, sectionIndex) {
-        return (
-          <SettingsSection
-            key={section.id}
-            title={t(section.titleKey)}
-            trailing={sectionIndex === 0 ? resetAllButton : undefined}
+      <View style={styles.filterBar}>
+        <SearchField
+          value={query}
+          onChangeText={handleFilterTextChange}
+          placeholder={t("settings.shortcuts.searchPlaceholder")}
+          clearAccessibilityLabel={t("settings.shortcuts.filter.clear")}
+          resetKey={comboChord ? "combo" : "text"}
+          testID="shortcuts-filter-search"
+          clearTestID="shortcuts-filter-clear"
+        />
+        <Button variant="ghost" size="sm" onPress={openSearchDialog}>
+          {t("settings.shortcuts.filter.byShortcut")}
+        </Button>
+      </View>
+      {comboChord ? (
+        <View style={styles.filterChip}>
+          <Shortcut chord={comboChord} />
+          <Pressable
+            onPress={clearShortcutFilter}
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.shortcuts.filter.clear")}
+            hitSlop={8}
+            testID="shortcuts-filter-reset"
           >
-            <View style={settingsStyles.card}>
-              {section.rows.map(function (row, index) {
-                const platform = { isMac, isDesktop: isDesktopApp };
-                const bindingId = getBindingIdForAction(row.id, platform);
-                const displayChord = resolveShortcutKeysForAction(row.id, overrides, platform);
-                // `in`, not a truthiness check: an unassigned shortcut stores
-                // null, and Reset has to stay available to undo it.
-                const hasOverride = bindingId !== null && bindingId in overrides;
-                // A binding authored with `combo: ""` has nothing to reset to.
-                const hasDefault = getDefaultKeysForAction(row.id, platform) !== null;
+            <ThemedX size={14} uniProps={foregroundMutedColorMapping} />
+          </Pressable>
+        </View>
+      ) : null}
+      {visibleSections.length === 0 ? (
+        <SettingsSection title={t("settings.sections.shortcuts")}>
+          <View style={[settingsStyles.card, styles.emptyCard]}>
+            <Text style={styles.emptyText}>{t("common.empty.noResults")}</Text>
+          </View>
+        </SettingsSection>
+      ) : (
+        visibleSections.map(function (section, sectionIndex) {
+          return (
+            <SettingsSection
+              key={section.id}
+              title={t(section.titleKey)}
+              trailing={sectionIndex === 0 ? resetAllButton : undefined}
+            >
+              <View style={settingsStyles.card}>
+                {section.rows.map(function (row, index) {
+                  const bindingId = getBindingIdForAction(row.id, platform);
+                  const displayChord = resolveShortcutKeysForAction(row.id, overrides, platform);
+                  // `in`, not a truthiness check: an unassigned shortcut stores
+                  // null, and Reset has to stay available to undo it.
+                  const hasOverride = bindingId !== null && bindingId in overrides;
+                  // A binding authored with `combo: ""` has nothing to reset to.
+                  const hasDefault = getDefaultKeysForAction(row.id, platform) !== null;
 
-                return (
-                  <View key={row.id}>
-                    <ShortcutRowContainer
-                      row={row}
-                      bindingId={bindingId}
-                      displayChord={displayChord}
-                      hasOverride={hasOverride}
-                      hasDefault={hasDefault}
-                      isCapturing={capturingBindingId === bindingId}
-                      capturedCombos={
-                        capturingBindingId === bindingId ? capturedCombos : EMPTY_CAPTURED_COMBOS
-                      }
-                      heldModifiers={capturingBindingId === bindingId ? heldModifiers : null}
-                      onStartCapture={startCapture}
-                      onSaveCapture={saveCapture}
-                      onCancelCapture={cancelCapture}
-                      onClearOverride={handleClearOverride}
-                      onRemoveOverride={handleRemoveOverride}
-                    />
-                    {index < section.rows.length - 1 && <View style={styles.separator} />}
-                  </View>
-                );
-              })}
-            </View>
-          </SettingsSection>
-        );
-      })}
+                  return (
+                    <View key={row.id}>
+                      <ShortcutRowContainer
+                        row={row}
+                        bindingId={bindingId}
+                        displayChord={displayChord}
+                        hasOverride={hasOverride}
+                        hasDefault={hasDefault}
+                        isCapturing={capturingBindingId === bindingId}
+                        capturedCombos={
+                          capturingBindingId === bindingId ? capturedCombos : EMPTY_CAPTURED_COMBOS
+                        }
+                        heldModifiers={
+                          capturingBindingId === bindingId ? capturedHeldModifiers : null
+                        }
+                        onStartCapture={startCapture}
+                        onSaveCapture={saveCapture}
+                        onCancelCapture={cancelCapture}
+                        onClearOverride={handleClearOverride}
+                        onRemoveOverride={handleRemoveOverride}
+                      />
+                      {index < section.rows.length - 1 && <View style={styles.separator} />}
+                    </View>
+                  );
+                })}
+              </View>
+            </SettingsSection>
+          );
+        })
+      )}
+      {isSearchDialogOpen ? (
+        <ShortcutSearchDialog onSearch={handleShortcutSearch} onClose={closeSearchDialog} />
+      ) : null}
     </>
   );
 }
@@ -534,9 +587,24 @@ const styles = StyleSheet.create((theme) => ({
   menuButtonPressed: {
     backgroundColor: theme.colors.surface3,
   },
-  capturingText: {
-    fontSize: theme.fontSize.base,
-    color: theme.colors.foregroundMuted,
+  filterBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[2],
+    marginBottom: theme.spacing[4],
+  },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: theme.spacing[2],
+    paddingVertical: theme.spacing[1.5],
+    paddingHorizontal: theme.spacing[3],
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface1,
+    borderWidth: theme.borderWidth[1],
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing[4],
   },
   unassignedText: {
     fontSize: theme.fontSize.base,
@@ -546,10 +614,10 @@ const styles = StyleSheet.create((theme) => ({
     height: 1,
     backgroundColor: theme.colors.border,
   },
-  mobileCard: {
+  emptyCard: {
     padding: theme.spacing[4],
   },
-  mobileText: {
+  emptyText: {
     fontSize: theme.fontSize.base,
     color: theme.colors.foregroundMuted,
   },
