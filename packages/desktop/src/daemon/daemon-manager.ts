@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { app, ipcMain, powerMonitor } from "electron";
+import { app, BrowserWindow, ipcMain, powerMonitor } from "electron";
 import log from "electron-log/main";
 import {
   resolvePaseoHome,
@@ -19,7 +19,11 @@ import {
   writeAttachmentBase64,
   writeAttachmentBytes,
 } from "../features/attachments.js";
-import { createDefaultLocalAppUpdateService } from "../features/local-app-update-service.js";
+import {
+  createDefaultLocalAppUpdateService,
+  resolveDefaultLocalBuildsDir,
+} from "../features/local-app-update-service.js";
+import { readLocalUpdateStateSignature } from "../features/local-updates.js";
 import {
   getBundledCliShimPath,
   getCliInstallStatus,
@@ -449,4 +453,33 @@ export function registerDaemonManager(): void {
       return await handler(args);
     },
   );
+
+  startLocalUpdateStatePolling();
+}
+
+// A cheap disk check every five seconds: state.json only changes when a build
+// finishes, so a changed signature means the renderer should re-check for an
+// update. OpenChamber-parity behavior for the local update channel.
+const LOCAL_UPDATE_POLL_INTERVAL_MS = 5_000;
+
+function startLocalUpdateStatePolling(): void {
+  if (!getLocalAppUpdateService().isEnabled()) {
+    return;
+  }
+
+  const buildsDir = resolveDefaultLocalBuildsDir();
+  let lastSignature = readLocalUpdateStateSignature({ buildsDir });
+  setInterval(() => {
+    const signature = readLocalUpdateStateSignature({ buildsDir });
+    if (signature === lastSignature) {
+      return;
+    }
+    lastSignature = signature;
+    log.info("[local-updates] staged-build state changed; notifying renderer");
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) {
+        window.webContents.send("paseo:event:check-for-updates", null);
+      }
+    }
+  }, LOCAL_UPDATE_POLL_INTERVAL_MS).unref();
 }

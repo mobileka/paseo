@@ -3,6 +3,7 @@ import {
   lstatSync,
   readFileSync,
   readlinkSync,
+  statSync,
   symlinkSync,
   unlinkSync,
 } from "node:fs";
@@ -64,6 +65,26 @@ function expandHomeDir(input: string): string {
     return path.join(os.homedir(), input.slice(2));
   }
   return input;
+}
+
+/**
+ * A cheap identity for the staged-build state: mtime plus size. The poll
+ * compares this every few seconds and only re-reads (and notifies the
+ * renderer) when the file actually changed.
+ */
+export function readLocalUpdateStateSignature({
+  buildsDir,
+  stat = statSync,
+}: {
+  buildsDir: string;
+  stat?: (filePath: string) => { mtimeMs: number; size: number };
+}): string {
+  try {
+    const stats = stat(path.join(buildsDir, STATE_FILE_NAME));
+    return `${stats.mtimeMs}:${stats.size}`;
+  } catch {
+    return "";
+  }
 }
 
 function parseTime(value: string | null | undefined): number | null {
