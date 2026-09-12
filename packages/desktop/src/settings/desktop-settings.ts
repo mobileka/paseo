@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import type { AppReleaseChannel } from "../features/auto-updater.js";
+export type AppReleaseChannel = "stable" | "beta";
 
 export interface DesktopSettings {
   releaseChannel: AppReleaseChannel;

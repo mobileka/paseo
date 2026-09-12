@@ -28,31 +28,21 @@ function makeSources(): DesktopDiagnosticSources {
       logPath: "/logs/Paseo/main.log",
       contents: "[login-shell-env] start\n[login-shell-env] failed",
     }),
-    getUpdaterDiagnostics: async () => ({
+    getUpdateDiagnostics: async () => ({
       platform: "darwin",
-      currentVersion: "0.7.0",
-      targetVersion: "0.7.2",
-      targetVersionError: null,
-      shipItDirectory: "/cache/sh.paseo.desktop.ShipIt",
-      state: {
-        path: "/cache/sh.paseo.desktop.ShipIt/ShipItState.plist",
-        exists: true,
-        modifiedAt: "2026-09-04T11:22:19.000Z",
-        contents: '{"launchAfterInstallation":true}',
+      home: "/paseo/home",
+      buildsDir: "/paseo/home/builds",
+      runningBuildSha: "0123456789abcdef",
+      builtAt: "2026-09-12T09:00:00Z",
+      stateFile: {
+        path: "/paseo/home/builds/state.json",
+        contents: '{"latest":{"commit":"abcdef1234567890"}}',
         error: null,
       },
-      stdout: {
-        path: "/cache/sh.paseo.desktop.ShipIt/ShipIt_stdout.log",
-        exists: false,
-        modifiedAt: null,
-        contents: "",
-        error: null,
-      },
-      stderr: {
-        path: "/cache/sh.paseo.desktop.ShipIt/ShipIt_stderr.log",
-        exists: true,
-        modifiedAt: "2026-09-01T08:39:20.000Z",
-        contents: "Installation completed successfully",
+      appLink: {
+        path: "/Applications/Paseo.app",
+        isSymlink: true,
+        target: "/paseo/home/builds/0.9.0_abcdef1/Paseo.app",
         error: null,
       },
     }),
@@ -81,31 +71,40 @@ describe("desktop diagnostic report", () => {
         await appLogGate;
         return makeSources().getAppLogs();
       },
-      getUpdaterDiagnostics: async () => {
-        calls.push("updater");
-        return makeSources().getUpdaterDiagnostics();
+      getUpdateDiagnostics: async () => {
+        calls.push("update");
+        return makeSources().getUpdateDiagnostics();
       },
     };
 
     const resultPromise = collectDesktopDiagnosticSections(sources);
 
-    expect(calls).toEqual(["status", "daemonLogs", "appLogs", "updater"]);
+    expect(calls).toEqual(["status", "daemonLogs", "appLogs", "update"]);
     releaseAppLogs();
     await expect(resultPromise).resolves.toMatchObject({ status: "done" });
   });
 
-  test("includes target version lookup errors", async () => {
-    const sources: DesktopDiagnosticSources = {
-      ...makeSources(),
-      getUpdaterDiagnostics: async () => ({
-        ...(await makeSources().getUpdaterDiagnostics()),
-        targetVersion: null,
-        targetVersionError: "plutil failed",
-      }),
-    };
+  test("includes local update diagnostics", async () => {
+    const result = await collectDesktopDiagnosticSections(makeSources());
+    const report = result.sections.join("\n\n");
 
-    const result = await collectDesktopDiagnosticSections(sources);
-    expect(result.sections.join("\n\n")).toContain("Target version error: plutil failed");
+    expect(result.status).toBe("done");
+    expect(report).toContain("  Log path: /paseo/home/daemon.log");
+    expect(report).toContain("  App log path: /logs/Paseo/main.log");
+    expect(report).toContain("Desktop daemon log tail\n  daemon line one\n  daemon line two");
+    expect(report).toContain(
+      "Desktop app log tail\n  [login-shell-env] start\n  [login-shell-env] failed",
+    );
+    expect(report.indexOf("Desktop app log tail")).toBeGreaterThan(
+      report.indexOf("Desktop daemon log tail"),
+    );
+    expect(report).toContain("Local updates\n  Platform: darwin");
+    expect(report).toContain("  Base directory: /paseo/home");
+    expect(report).toContain("  Builds directory: /paseo/home/builds");
+    expect(report).toContain("  Running build: 0123456789abcdef");
+    expect(report).toContain("Update state file");
+    expect(report).toContain('{"latest":{"commit":"abcdef1234567890"}}');
+    expect(report).toContain("/paseo/home/builds/0.9.0_abcdef1/Paseo.app");
   });
 
   test("includes the Electron main-process log after the daemon log", async () => {
@@ -122,14 +121,10 @@ describe("desktop diagnostic report", () => {
     expect(report.indexOf("Desktop app log tail")).toBeGreaterThan(
       report.indexOf("Desktop daemon log tail"),
     );
-    expect(report).toContain("Desktop updater\n  Platform: darwin");
-    expect(report).toContain("  Current version: 0.7.0");
-    expect(report).toContain("  Target version: 0.7.2");
-    expect(report).toContain("ShipItState.plist");
-    expect(report).toContain('{"launchAfterInstallation":true}');
-    expect(report).toContain("ShipIt stdout log tail");
-    expect(report).toContain("  File not found");
-    expect(report).toContain("Installation completed successfully");
+    expect(report).toContain("Local updates\n  Platform: darwin");
+    expect(report).toContain("  App link: /paseo/home/builds/0.9.0_abcdef1/Paseo.app");
+    expect(report).toContain("Update state file");
+    expect(report).toContain('{"latest":{"commit":"abcdef1234567890"}}');
   });
 
   test("keeps daemon diagnostics when the Electron app log fails", async () => {

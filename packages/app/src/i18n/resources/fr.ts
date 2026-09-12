@@ -2138,13 +2138,6 @@ export const fr: TranslationResources = {
       connectedHosts: "Hôtes connectés",
       offline: "Hors ligne",
       versionDiffers: "La version diffère de cet appareil",
-      releaseChannel: {
-        label: "Canal de sortie",
-        description:
-          "Passez àBetapour obtenir des mises à jour plus tôt et contribuer à les façonner",
-        stable: "Stable",
-        beta: "Beta",
-      },
       updates: {
         label: "Mises à jour de l'application",
         readyToInstall: "Prêt à installer:{{version}}",

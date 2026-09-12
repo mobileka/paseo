@@ -19,12 +19,7 @@ import {
   writeAttachmentBase64,
   writeAttachmentBytes,
 } from "../features/attachments.js";
-import {
-  checkForAppUpdate,
-  downloadAndInstallUpdate,
-  type AppUpdateCheckIntent,
-  type AppReleaseChannel,
-} from "../features/auto-updater.js";
+import { createDefaultLocalAppUpdateService } from "../features/local-app-update-service.js";
 import {
   getBundledCliShimPath,
   getCliInstallStatus,
@@ -48,7 +43,6 @@ import { getHotkeysConfigStore } from "../settings/hotkeys-config-electron.js";
 import { isRunningUnderARM64Translation } from "../system/arm64-translation.js";
 import { describeSandbox } from "../diagnostics/sandbox.js";
 import { getDesktopAppLogs } from "../diagnostics/app-logs.js";
-import { getDesktopUpdaterDiagnostics } from "../diagnostics/updater.js";
 import {
   deleteLegacySkillSelection,
   readLegacySkillSelection,
@@ -90,24 +84,6 @@ export interface DesktopDaemonStatus {
 interface DesktopDaemonLogs {
   logPath: string;
   contents: string;
-}
-
-function parseReleaseChannel(
-  args: Record<string, unknown> | undefined,
-): AppReleaseChannel | undefined {
-  if (args?.releaseChannel === "beta") {
-    return "beta";
-  }
-  if (args?.releaseChannel === "stable") {
-    return "stable";
-  }
-  return undefined;
-}
-
-function parseAppUpdateCheckIntent(
-  args: Record<string, unknown> | undefined,
-): AppUpdateCheckIntent {
-  return args?.intent === "manual" ? "manual" : "automatic";
 }
 
 function parseDesktopDaemonStopReason(
@@ -383,15 +359,16 @@ async function getLocalDaemonVersion(): Promise<{ version: string | null; error:
   };
 }
 
-async function resolveRequestedReleaseChannel(
-  args: Record<string, unknown> | undefined,
-): Promise<AppReleaseChannel> {
-  return parseReleaseChannel(args) ?? (await getDesktopSettingsStore().get()).releaseChannel;
-}
-
 // ---------------------------------------------------------------------------
 // IPC registration
 // ---------------------------------------------------------------------------
+
+let localAppUpdateService: ReturnType<typeof createDefaultLocalAppUpdateService> | null = null;
+
+function getLocalAppUpdateService() {
+  localAppUpdateService ??= createDefaultLocalAppUpdateService();
+  return localAppUpdateService;
+}
 
 export function createDaemonCommandHandlers(): Record<string, DesktopCommandHandler> {
   return {
@@ -418,7 +395,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
         launcherReason: process.env.PASEO_DESKTOP_SANDBOX_REASON,
       }),
     desktop_app_logs: () => getDesktopAppLogs(),
-    desktop_update_diagnostics: () => getDesktopUpdaterDiagnostics(),
+    desktop_update_diagnostics: () => getLocalAppUpdateService().getUpdateDiagnostics(),
     desktop_get_system_idle_time: () => powerMonitor.getSystemIdleTime() * 1000,
     cli_daemon_status: () => getCliDaemonStatus(),
     write_attachment_base64: (args) => writeAttachmentBase64(args ?? {}),
@@ -440,23 +417,17 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
           : "";
       if (sessionId) closeLocalTransportSession(sessionId);
     },
-    check_app_update: async (args) => {
-      const currentVersion = resolveDesktopAppVersion();
-      return checkForAppUpdate({
-        currentVersion,
-        releaseChannel: await resolveRequestedReleaseChannel(args),
-        intent: parseAppUpdateCheckIntent(args),
-      });
-    },
-    install_app_update: async (args) => {
-      const currentVersion = resolveDesktopAppVersion();
-      return downloadAndInstallUpdate(
-        { currentVersion, releaseChannel: await resolveRequestedReleaseChannel(args) },
-        async () => {
+    check_app_update: async () =>
+      getLocalAppUpdateService().checkForAppUpdate({
+        currentVersion: resolveDesktopAppVersion(),
+      }),
+    install_app_update: async () =>
+      getLocalAppUpdateService().installAppUpdate({
+        currentVersion: resolveDesktopAppVersion(),
+        stopDaemon: async () => {
           await stopDesktopDaemon("app_update");
         },
-      );
-    },
+      }),
     get_local_daemon_version: () => getLocalDaemonVersion(),
     install_cli: () => installCli(),
     get_cli_install_status: () => getCliInstallStatus(),

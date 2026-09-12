@@ -2206,12 +2206,6 @@ export const en = {
       connectedHosts: "Connected hosts",
       offline: "Offline",
       versionDiffers: "Version differs from this device",
-      releaseChannel: {
-        label: "Release channel",
-        description: "Switch to Beta to get updates sooner and help shape them",
-        stable: "Stable",
-        beta: "Beta",
-      },
       updates: {
         label: "App updates",
         readyToInstall: "Ready to install: {{version}}",

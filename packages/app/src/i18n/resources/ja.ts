@@ -2102,12 +2102,6 @@ export const ja: TranslationResources = {
       connectedHosts: "接続されているホスト",
       offline: "オフライン",
       versionDiffers: "このデバイスとバージョンが異なります",
-      releaseChannel: {
-        label: "リリースチャンネル",
-        description: "ベータに切り替えると早期に更新を取得してフィードバックを提供できます",
-        stable: "安定版",
-        beta: "ベータ",
-      },
       updates: {
         label: "アプリの更新",
         readyToInstall: "インストール準備完了: {{version}}",

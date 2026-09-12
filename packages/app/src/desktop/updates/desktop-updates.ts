@@ -24,7 +24,6 @@ export interface DesktopRuntimeInfo {
   runningUnderARM64Translation: boolean;
 }
 
-export type DesktopReleaseChannel = "stable" | "beta";
 export type DesktopAppUpdateCheckIntent = "automatic" | "manual";
 
 export interface LocalDaemonUpdateResult {
@@ -101,14 +100,11 @@ export async function getDesktopRuntimeInfo(): Promise<DesktopRuntimeInfo> {
 }
 
 export async function checkDesktopAppUpdate({
-  releaseChannel,
   intent,
 }: {
-  releaseChannel: DesktopReleaseChannel;
   intent: DesktopAppUpdateCheckIntent;
 }): Promise<DesktopAppUpdateCheckResult> {
   const result = await invokeDesktopCommand<unknown>("check_app_update", {
-    releaseChannel,
     intent,
   });
   if (!isRecord(result)) {
@@ -126,12 +122,8 @@ export async function checkDesktopAppUpdate({
   };
 }
 
-export async function installDesktopAppUpdate({
-  releaseChannel,
-}: {
-  releaseChannel: DesktopReleaseChannel;
-}): Promise<DesktopAppUpdateInstallResult> {
-  const result = await invokeDesktopCommand<unknown>("install_app_update", { releaseChannel });
+export async function installDesktopAppUpdate(): Promise<DesktopAppUpdateInstallResult> {
+  const result = await invokeDesktopCommand<unknown>("install_app_update");
   if (!isRecord(result)) {
     throw new Error("Unexpected response while installing desktop update.");
   }

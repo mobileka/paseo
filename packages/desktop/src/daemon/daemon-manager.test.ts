@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("electron", () => ({
   app: {
     getPath: vi.fn(() => mocks.paseoHome),
+    getAppPath: vi.fn(() => "/fake/app"),
     getVersion: vi.fn(() => "1.2.3"),
     isPackaged: true,
   },
@@ -115,12 +116,11 @@ describe("daemon-manager commands", () => {
     });
   });
 
-  it("exposes updater diagnostics through the desktop command boundary", () => {
+  it("exposes local update diagnostics through the desktop command boundary", () => {
     const diagnostics = createDaemonCommandHandlers().desktop_update_diagnostics();
 
     expect(diagnostics).toMatchObject({
       platform: process.platform,
-      currentVersion: "1.2.3",
     });
   });
 });

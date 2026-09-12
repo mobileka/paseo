@@ -38,23 +38,25 @@ export interface DesktopAppLogs {
   contents: string;
 }
 
-export interface DesktopUpdaterDiagnosticFile {
+export interface DesktopUpdateDiagnosticFile {
   path: string;
-  exists: boolean;
-  modifiedAt: string | null;
-  contents: string;
+  contents: string | null;
   error: string | null;
 }
 
-export interface DesktopUpdaterDiagnostics {
+export interface DesktopUpdateDiagnostics {
   platform: string;
-  currentVersion: string;
-  targetVersion: string | null;
-  targetVersionError: string | null;
-  shipItDirectory: string | null;
-  state: DesktopUpdaterDiagnosticFile | null;
-  stdout: DesktopUpdaterDiagnosticFile | null;
-  stderr: DesktopUpdaterDiagnosticFile | null;
+  home: string;
+  buildsDir: string;
+  runningBuildSha: string | null;
+  builtAt: string | null;
+  stateFile: DesktopUpdateDiagnosticFile | null;
+  appLink: {
+    path: string;
+    isSymlink: boolean;
+    target: string | null;
+    error: string | null;
+  };
 }
 
 export interface LocalTransportTarget {
@@ -148,33 +150,36 @@ function parseDesktopDaemonLogs(raw: unknown): DesktopDaemonLogs {
   };
 }
 
-function parseDesktopUpdaterDiagnosticFile(raw: unknown): DesktopUpdaterDiagnosticFile | null {
+function parseDesktopUpdateDiagnosticFile(raw: unknown): DesktopUpdateDiagnosticFile | null {
   if (raw === null) return null;
   if (!isRecord(raw)) {
-    throw new Error("Unexpected desktop updater diagnostic file response.");
+    throw new Error("Unexpected desktop update diagnostic file response.");
   }
   return {
     path: toStringOrNull(raw.path) ?? "",
-    exists: raw.exists === true,
-    modifiedAt: toStringOrNull(raw.modifiedAt),
-    contents: typeof raw.contents === "string" ? raw.contents : "",
+    contents: typeof raw.contents === "string" ? raw.contents : null,
     error: toStringOrNull(raw.error),
   };
 }
 
-function parseDesktopUpdaterDiagnostics(raw: unknown): DesktopUpdaterDiagnostics {
+function parseDesktopUpdateDiagnostics(raw: unknown): DesktopUpdateDiagnostics {
   if (!isRecord(raw)) {
-    throw new Error("Unexpected desktop updater diagnostics response.");
+    throw new Error("Unexpected desktop update diagnostics response.");
   }
+  const appLink = isRecord(raw.appLink) ? raw.appLink : null;
   return {
     platform: toStringOrNull(raw.platform) ?? "unknown",
-    currentVersion: toStringOrNull(raw.currentVersion) ?? "unknown",
-    targetVersion: toStringOrNull(raw.targetVersion),
-    targetVersionError: toStringOrNull(raw.targetVersionError),
-    shipItDirectory: toStringOrNull(raw.shipItDirectory),
-    state: parseDesktopUpdaterDiagnosticFile(raw.state),
-    stdout: parseDesktopUpdaterDiagnosticFile(raw.stdout),
-    stderr: parseDesktopUpdaterDiagnosticFile(raw.stderr),
+    home: toStringOrNull(raw.home) ?? "",
+    buildsDir: toStringOrNull(raw.buildsDir) ?? "",
+    runningBuildSha: toStringOrNull(raw.runningBuildSha),
+    builtAt: toStringOrNull(raw.builtAt),
+    stateFile: parseDesktopUpdateDiagnosticFile(raw.stateFile),
+    appLink: {
+      path: appLink ? (toStringOrNull(appLink.path) ?? "") : "",
+      isSymlink: appLink?.isSymlink === true,
+      target: appLink ? toStringOrNull(appLink.target) : null,
+      error: appLink ? toStringOrNull(appLink.error) : null,
+    },
   };
 }
 
@@ -242,8 +247,8 @@ export async function getDesktopAppLogs(): Promise<DesktopAppLogs> {
   };
 }
 
-export async function getDesktopUpdaterDiagnostics(): Promise<DesktopUpdaterDiagnostics> {
-  return parseDesktopUpdaterDiagnostics(await invokeDesktopCommand("desktop_update_diagnostics"));
+export async function getDesktopUpdateDiagnostics(): Promise<DesktopUpdateDiagnostics> {
+  return parseDesktopUpdateDiagnostics(await invokeDesktopCommand("desktop_update_diagnostics"));
 }
 
 export async function getCliDaemonStatus(): Promise<string> {
