@@ -4,12 +4,12 @@ import {
   getDesktopAppLogs,
   getDesktopDaemonLogs,
   getDesktopDaemonStatus,
-  getDesktopUpdaterDiagnostics,
+  getDesktopUpdateDiagnostics,
   type DesktopAppLogs,
   type DesktopDaemonLogs,
   type DesktopDaemonStatus,
-  type DesktopUpdaterDiagnosticFile,
-  type DesktopUpdaterDiagnostics,
+  type DesktopUpdateDiagnosticFile,
+  type DesktopUpdateDiagnostics,
 } from "@/desktop/daemon/desktop-daemon";
 import { formatDiagnosticSection } from "./app-diagnostic-report";
 
@@ -25,7 +25,7 @@ export interface DesktopDiagnosticSources {
   getStatus: () => Promise<DesktopDaemonStatus>;
   getDaemonLogs: () => Promise<DesktopDaemonLogs>;
   getAppLogs: () => Promise<DesktopAppLogs>;
-  getUpdaterDiagnostics: () => Promise<DesktopUpdaterDiagnostics>;
+  getUpdateDiagnostics: () => Promise<DesktopUpdateDiagnostics>;
 }
 
 const DEFAULT_DESKTOP_DIAGNOSTIC_SOURCES: DesktopDiagnosticSources = {
@@ -33,7 +33,7 @@ const DEFAULT_DESKTOP_DIAGNOSTIC_SOURCES: DesktopDiagnosticSources = {
   getStatus: getDesktopDaemonStatus,
   getDaemonLogs: getDesktopDaemonLogs,
   getAppLogs: getDesktopAppLogs,
-  getUpdaterDiagnostics: getDesktopUpdaterDiagnostics,
+  getUpdateDiagnostics: getDesktopUpdateDiagnostics,
 };
 
 export async function collectDesktopDiagnosticSections(
@@ -42,10 +42,10 @@ export async function collectDesktopDiagnosticSections(
   const sections: string[] = [];
   let failed = false;
 
-  const [daemonResult, appLogsResult, updaterResult, sandboxResult] = await Promise.allSettled([
+  const [daemonResult, appLogsResult, updateResult, sandboxResult] = await Promise.allSettled([
     Promise.all([sources.getStatus(), sources.getDaemonLogs()]),
     sources.getAppLogs(),
-    sources.getUpdaterDiagnostics(),
+    sources.getUpdateDiagnostics(),
     sources.getSandboxDiagnostics(),
   ]);
 
@@ -93,13 +93,13 @@ export async function collectDesktopDiagnosticSections(
     );
   }
 
-  if (updaterResult.status === "fulfilled") {
-    sections.push(...formatDesktopUpdaterSections(updaterResult.value));
+  if (updateResult.status === "fulfilled") {
+    sections.push(...formatDesktopUpdateSections(updateResult.value));
   } else {
     failed = true;
     sections.push(
-      formatDiagnosticSection("Desktop updater", [
-        { label: "Error", value: toMessage(updaterResult.reason) },
+      formatDiagnosticSection("Local updates", [
+        { label: "Error", value: toMessage(updateResult.reason) },
       ]),
     );
   }
@@ -110,42 +110,33 @@ export async function collectDesktopDiagnosticSections(
   };
 }
 
-function formatDesktopUpdaterSections(diagnostics: DesktopUpdaterDiagnostics): string[] {
-  const updaterDetails = [
-    { label: "Platform", value: diagnostics.platform },
-    { label: "Current version", value: diagnostics.currentVersion },
-    { label: "Target version", value: diagnostics.targetVersion ?? "unknown" },
-    { label: "ShipIt directory", value: diagnostics.shipItDirectory ?? "not applicable" },
+function formatDesktopUpdateSections(diagnostics: DesktopUpdateDiagnostics): string[] {
+  const sections = [
+    formatDiagnosticSection("Local updates", [
+      { label: "Platform", value: diagnostics.platform },
+      { label: "Base directory", value: diagnostics.home },
+      { label: "Builds directory", value: diagnostics.buildsDir },
+      { label: "Running build", value: diagnostics.runningBuildSha ?? "stock build" },
+      { label: "Built at", value: diagnostics.builtAt ?? "unknown" },
+      {
+        label: "App link",
+        value: diagnostics.appLink.isSymlink
+          ? (diagnostics.appLink.target ?? "unknown")
+          : (diagnostics.appLink.error ?? "not a symlink"),
+      },
+    ]),
+    formatUpdateFileSection("Update state file", diagnostics.stateFile),
   ];
-  if (diagnostics.targetVersionError) {
-    updaterDetails.push({ label: "Target version error", value: diagnostics.targetVersionError });
-  }
-  const sections = [formatDiagnosticSection("Desktop updater", updaterDetails)];
-
-  if (diagnostics.platform !== "darwin") return sections;
-
-  sections.push(
-    formatUpdaterFileSection("ShipItState.plist", diagnostics.state),
-    formatUpdaterFileSection("ShipIt stdout log tail", diagnostics.stdout),
-    formatUpdaterFileSection("ShipIt stderr log tail", diagnostics.stderr),
-  );
   return sections;
 }
 
-function formatUpdaterFileSection(
-  title: string,
-  file: DesktopUpdaterDiagnosticFile | null,
-): string {
+function formatUpdateFileSection(title: string, file: DesktopUpdateDiagnosticFile | null): string {
   if (!file) {
     return formatDiagnosticSection(title, [{ label: "Status", value: "unavailable" }]);
   }
 
-  const header = formatDiagnosticSection(title, [
-    { label: "Path", value: file.path || "unknown" },
-    { label: "Modified", value: file.modifiedAt ?? "unknown" },
-  ]);
+  const header = formatDiagnosticSection(title, [{ label: "Path", value: file.path || "unknown" }]);
   if (file.error) return `${header}\n  Error: ${file.error}`;
-  if (!file.exists) return `${header}\n  File not found`;
   if (!file.contents) return `${header}\n  No contents found`;
   return `${header}\n${indentBlock(file.contents)}`;
 }

@@ -8,7 +8,6 @@ import {
   type DesktopAppUpdateCheckIntent,
   type DesktopAppUpdateInstallResult,
 } from "@/desktop/updates/desktop-updates";
-import { useDesktopSettings } from "@/desktop/settings/desktop-settings";
 import { useDesktopIpcErrorReporter } from "@/desktop/hooks/desktop-ipc-error";
 import {
   PENDING_RECHECK_MS,
@@ -38,8 +37,6 @@ export interface UseDesktopAppUpdaterReturn {
 
 export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
   const isDesktopApp = shouldShowDesktopUpdateSection();
-  const { settings: desktopSettings } = useDesktopSettings();
-  const releaseChannel = desktopSettings.releaseChannel;
   const reportError = useDesktopIpcErrorReporter();
 
   const updater = useMemo(
@@ -67,20 +64,19 @@ export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
         return null;
       }
       return updater.checkForUpdates({
-        releaseChannel,
         intent: options.intent ?? "manual",
         silent: options.silent,
       });
     },
-    [isDesktopApp, releaseChannel, updater],
+    [isDesktopApp, updater],
   );
 
   const installUpdate = useCallback(async () => {
     if (!isDesktopApp) {
       return null;
     }
-    return updater.installUpdate({ releaseChannel });
-  }, [isDesktopApp, releaseChannel, updater]);
+    return updater.installUpdate();
+  }, [isDesktopApp, updater]);
 
   useEffect(() => {
     if (!isDesktopApp) {

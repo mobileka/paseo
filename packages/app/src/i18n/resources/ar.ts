@@ -2085,12 +2085,6 @@ export const ar: TranslationResources = {
       connectedHosts: "المضيفين المتصلين",
       offline: "غير متصل",
       versionDiffers: "الإصدار يختلف عن هذا الجهاز",
-      releaseChannel: {
-        label: "الافراج عن القناة",
-        description: "قم بالتبديل إلى Beta للحصول على التحديثات عاجلاً والمساعدة في تشكيلها",
-        stable: "Stable",
-        beta: "Beta",
-      },
       updates: {
         label: "تحديثات التطبيق",
         readyToInstall: "جاهز للتثبيت:{{version}}",

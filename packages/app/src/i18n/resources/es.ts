@@ -2135,12 +2135,6 @@ export const es: TranslationResources = {
       connectedHosts: "Anfitriones conectados",
       offline: "Desconectado",
       versionDiffers: "La versión difiere de este dispositivo.",
-      releaseChannel: {
-        label: "Canal de lanzamiento",
-        description: "Cambie aBetapara recibir actualizaciones antes y ayudar a darles forma",
-        stable: "Stable",
-        beta: "Beta",
-      },
       updates: {
         label: "Actualizaciones de aplicaciones",
         readyToInstall: "Listo para instalar:{{version}}",

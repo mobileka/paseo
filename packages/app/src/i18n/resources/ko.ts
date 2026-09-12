@@ -2096,12 +2096,6 @@ export const ko: TranslationResources = {
       connectedHosts: "연결된 호스트",
       offline: "오프라인",
       versionDiffers: "이 기기와 버전이 다릅니다",
-      releaseChannel: {
-        label: "릴리스 채널",
-        description: "Beta로 전환하면 업데이트를 더 빨리 받고 개선에 참여할 수 있습니다",
-        stable: "안정",
-        beta: "베타",
-      },
       updates: {
         label: "앱 업데이트",
         readyToInstall: "설치 준비됨: {{version}}",

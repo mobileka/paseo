@@ -2061,12 +2061,6 @@ export const zhCN: TranslationResources = {
       connectedHosts: "已连接的 Host",
       offline: "离线",
       versionDiffers: "版本与此设备不同",
-      releaseChannel: {
-        label: "发布通道",
-        description: "切换到 Beta 可更早获取更新并参与改进",
-        stable: "Stable",
-        beta: "Beta",
-      },
       updates: {
         label: "应用更新",
         readyToInstall: "可安装：{{version}}",

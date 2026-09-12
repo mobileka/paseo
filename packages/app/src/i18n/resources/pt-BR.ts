@@ -2119,12 +2119,6 @@ export const ptBR: TranslationResources = {
       connectedHosts: "Hosts conectados",
       offline: "Offline",
       versionDiffers: "A versão é diferente da deste dispositivo",
-      releaseChannel: {
-        label: "Canal de lançamento",
-        description: "Troque para Beta para receber atualizações antes e ajudar a moldá-las",
-        stable: "Stable",
-        beta: "Beta",
-      },
       updates: {
         label: "Atualizações do app",
         readyToInstall: "Pronta para instalar: {{version}}",
