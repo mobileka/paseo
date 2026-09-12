@@ -196,6 +196,10 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         run: sudo apt-get update && sudo apt-get install -y xvfb xauth xdotool
 
+      - name: Install Playwright browser
+        if: ${{ runner.os == 'Linux' }}
+        run: npx playwright install chromium
+
       - name: Run desktop lifecycle E2E (Linux)
         if: ${{ runner.os == 'Linux' }}
         run: xvfb-run -a --server-args="-screen 0 1280x800x24" npm run test:e2e:lifecycle --workspace=@getpaseo/desktop
