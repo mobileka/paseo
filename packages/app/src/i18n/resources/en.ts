@@ -2805,4 +2805,14 @@ type WidenStringLeaves<T> = {
   [K in keyof T]: T[K] extends string ? string : WidenStringLeaves<T[K]>;
 };
 
-export type TranslationResources = WidenStringLeaves<typeof en>;
+/**
+ * The fork runs English-only: new keys land in `en` alone and the other
+ * locales render them through i18next's `fallbackLng: "en"`. The resource
+ * type is therefore deep-partial — missing keys are allowed, while object
+ * literals still flag misspelled keys.
+ */
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends string ? string : DeepPartial<T[K]>;
+};
+
+export type TranslationResources = DeepPartial<WidenStringLeaves<typeof en>>;
