@@ -96,7 +96,11 @@ resolve_dev_daemon_endpoint() {
 }
 
 configure_dev_paseo_home() {
-  if [ -n "${PASEO_HOME:-}" ]; then
+  # fork(update-channel): the global PASEO_HOME points at the fork's shared
+  # base directory (~/dev/opencode/paseo) for the packaged app; dev keeps its
+  # checkout-scoped home unless PASEO_DEV_HOME=1 opts back in. Keep this guard
+  # when merging upstream changes to this function.
+  if [ -n "${PASEO_HOME:-}" ] && [ "${PASEO_DEV_HOME:-0}" = "1" ]; then
     export PASEO_HOME
     if [ -n "${PASEO_DEV_SEED_HOME:-}" ]; then
       seed_worktree_paseo_home "$PASEO_HOME"
