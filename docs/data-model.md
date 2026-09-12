@@ -45,6 +45,7 @@ Store APIs own persistence atomicity and should not make services coordinate raw
 ```
 $PASEO_HOME/
 ├── config.json                          # Daemon configuration
+├── hotkeys.json                         # Keyboard shortcut overrides (written by the desktop app, not the daemon)
 ├── server-id                            # Stable daemon identifier (plain text, "srv_<base64url>")
 ├── daemon-keypair.json                  # E2EE keypair for relay (mode 0600)
 ├── paseo.pid                            # Daemon PID lock file
@@ -561,7 +562,7 @@ These small files are not validated as full Zod schemas but are persisted under 
 
 ## Client-side stores (App)
 
-These live in React Native `AsyncStorage` or browser `IndexedDB`, not on the daemon filesystem.
+These live in React Native `AsyncStorage` or browser `IndexedDB`, not on the daemon filesystem. Exception: on Electron desktop, keyboard shortcut overrides are persisted to `$PASEO_HOME/hotkeys.json` by the Electron main process (`packages/desktop/src/settings/hotkeys-config.ts`), with a one-time migration from AsyncStorage.
 
 ### Keying convention: directory-backed vs workspace-owned
 

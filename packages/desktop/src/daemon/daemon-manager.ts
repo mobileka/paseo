@@ -43,6 +43,8 @@ import {
 } from "../settings/desktop-settings-commands.js";
 import type { DesktopSettings } from "../settings/desktop-settings.js";
 import { getDesktopSettingsStore } from "../settings/desktop-settings-electron.js";
+import { createHotkeysConfigCommandHandlers } from "../settings/hotkeys-config-commands.js";
+import { getHotkeysConfigStore } from "../settings/hotkeys-config-electron.js";
 import { isRunningUnderARM64Translation } from "../system/arm64-translation.js";
 import { describeSandbox } from "../diagnostics/sandbox.js";
 import { getDesktopAppLogs } from "../diagnostics/app-logs.js";
@@ -394,6 +396,7 @@ async function resolveRequestedReleaseChannel(
 export function createDaemonCommandHandlers(): Record<string, DesktopCommandHandler> {
   return {
     ...createDesktopSettingsCommandHandlers({ settingsStore: getDesktopSettingsStore() }),
+    ...createHotkeysConfigCommandHandlers({ hotkeysStore: getHotkeysConfigStore() }),
     desktop_get_runtime_info: () => ({
       appVersion: resolveDesktopAppVersion(),
       runningUnderARM64Translation: isRunningUnderARM64Translation(),

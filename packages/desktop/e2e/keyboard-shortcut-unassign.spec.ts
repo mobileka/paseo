@@ -16,15 +16,28 @@ const SHORTCUTS_ROW = "show-shortcuts";
  */
 async function installDesktopBridge(page: Page): Promise<void> {
   await page.addInitScript(() => {
+    const HOTKEYS_STORAGE_KEY = "@paseo:keyboard-shortcut-overrides";
     window.paseoDesktop = {
       platform: "darwin",
       events: { on: () => () => {} },
-      invoke: async (command: string) => {
+      invoke: async (command: string, args?: Record<string, unknown>) => {
         if (command === "get_desktop_settings") {
           return {
             releaseChannel: "stable",
             daemon: { manageBuiltInDaemon: false, keepRunningAfterQuit: true },
           };
+        }
+        if (command === "get_hotkeys") {
+          const raw = window.localStorage.getItem(HOTKEYS_STORAGE_KEY);
+          return {
+            overrides: raw === null ? {} : (JSON.parse(raw) as Record<string, string | null>),
+            exists: raw !== null,
+          };
+        }
+        if (command === "set_hotkeys") {
+          const overrides = (args?.overrides ?? {}) as Record<string, string | null>;
+          window.localStorage.setItem(HOTKEYS_STORAGE_KEY, JSON.stringify(overrides));
+          return { overrides, exists: true };
         }
         return null;
       },
