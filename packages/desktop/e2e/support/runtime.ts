@@ -138,6 +138,7 @@ export async function installDesktopRuntime(
   }
 
   await page.addInitScript((cfg) => {
+    const HOTKEYS_STORAGE_KEY = "@paseo:keyboard-shortcut-overrides";
     // Mutable state shared across IPC calls within this page
     let manageDaemon = cfg.manageBuiltInDaemon ?? false;
     let daemonRunning = true;
@@ -209,6 +210,52 @@ export async function installDesktopRuntime(
       return buildAppUpdateCheckResult(manualUpdateAdmitted, manualUpdateAdmitted);
     }
 
+    async function desktopSettingsInvoke(command: string, args?: Record<string, unknown>) {
+      if (command === "get_desktop_settings") {
+        await waitForDesktopSettingsResponse();
+        return {
+          releaseChannel: "stable",
+          daemon: { manageBuiltInDaemon: manageDaemon, keepRunningAfterQuit: true },
+        };
+      }
+
+      if (command === "patch_desktop_settings") {
+        const daemon = args?.daemon;
+        if (
+          daemon !== null &&
+          typeof daemon === "object" &&
+          "manageBuiltInDaemon" in daemon &&
+          typeof daemon.manageBuiltInDaemon === "boolean"
+        ) {
+          manageDaemon = daemon.manageBuiltInDaemon;
+        }
+        return {
+          releaseChannel: "stable",
+          daemon: { manageBuiltInDaemon: manageDaemon, keepRunningAfterQuit: true },
+        };
+      }
+
+      return undefined;
+    }
+
+    function hotkeysInvoke(command: string, args?: Record<string, unknown>) {
+      if (command === "get_hotkeys") {
+        const raw = window.localStorage.getItem(HOTKEYS_STORAGE_KEY);
+        return {
+          overrides: raw === null ? {} : (JSON.parse(raw) as Record<string, string | null>),
+          exists: raw !== null,
+        };
+      }
+
+      if (command === "set_hotkeys") {
+        const overrides = (args?.overrides ?? {}) as Record<string, string | null>;
+        window.localStorage.setItem(HOTKEYS_STORAGE_KEY, JSON.stringify(overrides));
+        return { overrides, exists: true };
+      }
+
+      return undefined;
+    }
+
     const desktopBridge: {
       platform: string;
       invoke: (command: string, args?: Record<string, unknown>) => Promise<unknown>;
@@ -225,6 +272,16 @@ export async function installDesktopRuntime(
     } = {
       platform: "darwin",
       invoke: async (command: string, args?: Record<string, unknown>) => {
+        const desktopSettings = await desktopSettingsInvoke(command, args);
+        if (desktopSettings !== undefined) {
+          return desktopSettings;
+        }
+
+        const hotkeys = hotkeysInvoke(command, args);
+        if (hotkeys !== undefined) {
+          return hotkeys;
+        }
+
         if (command === "check_app_update") {
           return checkAppUpdate(args?.intent);
         }
@@ -246,30 +303,6 @@ export async function installDesktopRuntime(
 
         if (command === "desktop_daemon_logs") {
           return { logPath: cfg.daemonLogPath ?? "", contents: "" };
-        }
-
-        if (command === "get_desktop_settings") {
-          await waitForDesktopSettingsResponse();
-          return {
-            releaseChannel: "stable",
-            daemon: { manageBuiltInDaemon: manageDaemon, keepRunningAfterQuit: true },
-          };
-        }
-
-        if (command === "patch_desktop_settings") {
-          const daemon = args?.daemon;
-          if (
-            daemon !== null &&
-            typeof daemon === "object" &&
-            "manageBuiltInDaemon" in daemon &&
-            typeof daemon.manageBuiltInDaemon === "boolean"
-          ) {
-            manageDaemon = daemon.manageBuiltInDaemon;
-          }
-          return {
-            releaseChannel: "stable",
-            daemon: { manageBuiltInDaemon: manageDaemon, keepRunningAfterQuit: true },
-          };
         }
 
         if (command === "stop_desktop_daemon") {

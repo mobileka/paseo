@@ -7,7 +7,7 @@ import {
 import {
   loadShortcutOverrides,
   shortcutOverridesStorage,
-} from "@/keyboard/shortcut-overrides-storage";
+} from "@/desktop/keyboard-shortcuts/shortcut-overrides-storage";
 
 const QUERY_KEY = ["keyboard-shortcut-overrides"];
 
