@@ -13,6 +13,7 @@ import { resolveModelBrowserScrolling } from "@/components/model-browser-view";
 import { AgentControlTrigger } from "@/composer/agent-controls/control";
 import { ComposerToolbarGlyph } from "@/composer/agent-controls/glyph";
 import { resolveModelSheetOpening } from "@/composer/agent-controls/model-sheet-flow";
+import { useModelPickShortcut } from "@/composer/agent-controls/use-agent-control-shortcuts";
 import type { ProviderSelectorProvider } from "@/provider-selection/provider-selection";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
@@ -44,6 +45,11 @@ interface CompactModelSheetProps {
   serverId?: string | null;
   glyphSize: number;
   canSwitchProvider: boolean;
+  /**
+   * Opt-in to the `message-input.model-pick` keyboard action, same contract
+   * as `CombinedModelSelector.keyboardPickShortcut`.
+   */
+  keyboardPickShortcut?: boolean;
   children: ReactNode;
 }
 
@@ -96,6 +102,7 @@ export function CompactModelSheet({
   serverId = null,
   glyphSize,
   canSwitchProvider,
+  keyboardPickShortcut = false,
   children,
 }: CompactModelSheetProps) {
   const { t } = useTranslation();
@@ -162,6 +169,13 @@ export function CompactModelSheet({
     modelBrowser.reset();
     onClose?.();
   }, [modelBrowser, onClose, rootBrowser]);
+
+  useModelPickShortcut({
+    enabled: keyboardPickShortcut,
+    disabled,
+    isOpen,
+    open,
+  });
 
   const handleSearchSelect = useCallback(
     (provider: string, modelId: string) => {

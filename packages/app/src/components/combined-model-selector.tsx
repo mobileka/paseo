@@ -11,6 +11,7 @@ import { ModelBrowser, ModelProviderGlyph, useModelBrowser } from "@/components/
 import { resolveModelBrowserScrolling } from "@/components/model-browser-view";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb } from "@/constants/platform";
+import { useModelPickShortcut } from "@/composer/agent-controls/use-agent-control-shortcuts";
 import type { ProviderSelectorProvider } from "@/provider-selection/provider-selection";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
 
@@ -63,6 +64,12 @@ interface CombinedModelSelectorProps {
     glyphSize: number;
     showCaret: boolean;
   };
+  /**
+   * Opt-in to the `message-input.model-pick` keyboard action. Only the
+   * composer toolbar passes it; other surfaces (schedule form, settings)
+   * keep the selector silent so the shortcut can only open one picker.
+   */
+  keyboardPickShortcut?: boolean;
 }
 
 export function CombinedModelSelector({
@@ -87,6 +94,7 @@ export function CombinedModelSelector({
   desktopMinWidth,
   triggerFill = false,
   toolbar,
+  keyboardPickShortcut = false,
 }: CombinedModelSelectorProps) {
   const { t } = useTranslation();
   const isCompact = useIsCompactFormFactor();
@@ -117,6 +125,14 @@ export function CombinedModelSelector({
     },
     [onClose, onOpen, prepareToOpen, reset],
   );
+
+  const modelPickShortcutOpen = useCallback(() => handleOpenChange(true), [handleOpenChange]);
+  useModelPickShortcut({
+    enabled: keyboardPickShortcut,
+    disabled,
+    isOpen,
+    open: modelPickShortcutOpen,
+  });
 
   const handleSelect = useCallback(
     (provider: string, modelId: string) => {
