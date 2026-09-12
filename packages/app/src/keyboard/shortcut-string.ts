@@ -236,6 +236,24 @@ export function chordStringToShortcutKeys(s: string): ShortcutKey[][] {
   return s.split(" ").map(comboStringToShortcutKeys);
 }
 
+/**
+ * Structural chord equality for search-by-shortcut: same number of combos, and
+ * each combo carries the same key and modifier set regardless of order. Both
+ * sides must come from the same parser (`comboStringToShortcutKeys` or
+ * `chordStringToShortcutKeys`), which already canonicalizes names like
+ * `Escape` → `Esc` and folds `Cmd`/`Mod` into one token.
+ */
+export function chordsEqual(a: ShortcutKey[][], b: ShortcutKey[][]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((combo, index) => comboKeysEqual(combo, b[index]));
+}
+
+function comboKeysEqual(comboA: ShortcutKey[], comboB: ShortcutKey[]): boolean {
+  if (comboA.length !== comboB.length) return false;
+  const keysB = new Set(comboB.map((key) => key.toLowerCase()));
+  return comboA.every((key) => keysB.has(key.toLowerCase()));
+}
+
 export function heldModifiersFromEvent(event: KeyboardEvent): string | null {
   const parts: string[] = [];
   if (event.ctrlKey) parts.push("Ctrl");

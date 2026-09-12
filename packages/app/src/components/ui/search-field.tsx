@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { Pressable, View } from "react-native";
 import { Search, X } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -25,6 +25,13 @@ export interface SearchFieldProps {
   /** Falls back to `placeholder`, which already names the field. */
   accessibilityLabel?: string;
   clearAccessibilityLabel: string;
+  /**
+   * Change this to force the input's text back to `value`. The field is
+   * uncontrolled, so a caller that rewrites `value` from the outside (a filter
+   * owned by a dialog elsewhere on the screen) needs this to make the input
+   * follow along.
+   */
+  resetKey?: string | number;
   testID?: string;
   clearTestID?: string;
 }
@@ -42,17 +49,25 @@ export function SearchField({
   placeholder,
   accessibilityLabel,
   clearAccessibilityLabel,
+  resetKey,
   testID,
   clearTestID,
 }: SearchFieldProps): ReactElement {
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<EditingTextInputHandle>(null);
+  const previousResetKey = useRef(resetKey);
   const handleFocus = useCallback(() => setIsFocused(true), []);
   const handleBlur = useCallback(() => setIsFocused(false), []);
   const handleClear = useCallback(() => {
     inputRef.current?.replaceText("");
     onChangeText("");
   }, [onChangeText]);
+
+  useEffect(() => {
+    if (resetKey === undefined || resetKey === previousResetKey.current) return;
+    previousResetKey.current = resetKey;
+    inputRef.current?.replaceText(value);
+  }, [resetKey, value]);
 
   return (
     <View style={[styles.field, isFocused && styles.fieldFocused]}>

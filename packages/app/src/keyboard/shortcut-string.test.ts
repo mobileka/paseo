@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { formatShortcut } from "@/utils/format-shortcut";
 import {
+  chordStringToShortcutKeys,
+  chordsEqual,
   comboStringToShortcutKeys,
   keyComboToString,
   keyboardEventToComboString,
@@ -104,5 +106,32 @@ describe("comboStringToShortcutKeys", () => {
       const rendered = formatShortcut([key], "non-mac");
       expect(rendered, `${name} renders as ${rendered}`).not.toBe(name.toUpperCase());
     }
+  });
+});
+
+describe("chordsEqual", () => {
+  it("matches the same chord spelled with different modifier order", () => {
+    const a = chordStringToShortcutKeys("Cmd+Shift+K");
+    const b = chordStringToShortcutKeys("Shift+Cmd+K");
+
+    expect(chordsEqual(a, b)).toBe(true);
+  });
+
+  it("ignores letter case in key names", () => {
+    expect(
+      chordsEqual(chordStringToShortcutKeys("Cmd+N"), chordStringToShortcutKeys("Cmd+n")),
+    ).toBe(true);
+  });
+
+  it("rejects a different key, a missing modifier, and an extra chord", () => {
+    expect(
+      chordsEqual(chordStringToShortcutKeys("Cmd+K"), chordStringToShortcutKeys("Cmd+N")),
+    ).toBe(false);
+    expect(chordsEqual(chordStringToShortcutKeys("Cmd+K"), chordStringToShortcutKeys("K"))).toBe(
+      false,
+    );
+    expect(
+      chordsEqual(chordStringToShortcutKeys("Cmd+K"), chordStringToShortcutKeys("Cmd+K Cmd+N")),
+    ).toBe(false);
   });
 });

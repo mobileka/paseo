@@ -2200,6 +2200,10 @@ export const ptBR: TranslationResources = {
     shortcuts: {
       dialogTitle: "Atalhos",
       searchPlaceholder: "Pesquisar atalhos",
+      filter: {
+        byShortcut: "Pesquisar por atalho",
+        clear: "Mostrar todos os atalhos",
+      },
       unavailableOnMobile: "Atalhos de teclado estão disponíveis apenas no desktop",
       capturePrompt: "Pressione o atalho...",
       unassigned: "Não definido",
