@@ -9,6 +9,7 @@ import {
   readBuildMetadata,
   readLocalUpdateDetails,
   readLocalUpdateState,
+  readLocalUpdateStateSignature,
   repointApplicationsLink,
   resolveLocalBuildsDir,
   STATE_FILE_NAME,
@@ -204,6 +205,28 @@ describe("readLocalUpdateDetails", () => {
     expect(
       readLocalUpdateDetails({ folderPath: "/fake/build", readFile: () => "nope" }),
     ).toBeNull();
+  });
+});
+
+describe("readLocalUpdateStateSignature", () => {
+  it("is empty while the state file is missing", () => {
+    const buildsDir = makeBuildsDir();
+    mkdirSync(buildsDir, { recursive: true });
+    expect(readLocalUpdateStateSignature({ buildsDir })).toBe("");
+  });
+
+  it("changes when the state file changes and is stable otherwise", () => {
+    const buildsDir = makeBuildsDir();
+    mkdirSync(buildsDir, { recursive: true });
+    writeFileSync(path.join(buildsDir, STATE_FILE_NAME), "{}");
+    const first = readLocalUpdateStateSignature({ buildsDir });
+    expect(first).not.toBe("");
+
+    expect(readLocalUpdateStateSignature({ buildsDir })).toBe(first);
+
+    writeFileSync(path.join(buildsDir, STATE_FILE_NAME), "{}\n");
+    const second = readLocalUpdateStateSignature({ buildsDir });
+    expect(second).not.toBe(first);
   });
 });
 

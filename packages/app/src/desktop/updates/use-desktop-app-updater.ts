@@ -9,6 +9,7 @@ import {
   type DesktopAppUpdateInstallResult,
 } from "@/desktop/updates/desktop-updates";
 import { useDesktopIpcErrorReporter } from "@/desktop/hooks/desktop-ipc-error";
+import { listenToDesktopEvent } from "@/desktop/electron/events";
 import {
   PENDING_RECHECK_MS,
   createDesktopAppUpdater,
@@ -83,6 +84,34 @@ export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
       return;
     }
     void checkForUpdates({ intent: "automatic", silent: true });
+  }, [checkForUpdates, isDesktopApp]);
+
+  // The main process watches the staged-build state file and pushes this
+  // event within five seconds of a new build being staged.
+  useEffect(() => {
+    if (!isDesktopApp) {
+      return undefined;
+    }
+    let disposed = false;
+    let dispose: (() => void) | null = null;
+    listenToDesktopEvent("check-for-updates", () => {
+      void checkForUpdates({ intent: "automatic", silent: true });
+    })
+      .then((unlisten) => {
+        if (disposed) {
+          unlisten();
+          return null;
+        }
+        dispose = unlisten;
+        return null;
+      })
+      .catch(() => {
+        // The desktop event API is unavailable outside the packaged app.
+      });
+    return () => {
+      disposed = true;
+      dispose?.();
+    };
   }, [checkForUpdates, isDesktopApp]);
 
   useEffect(() => {

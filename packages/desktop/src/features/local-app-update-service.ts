@@ -175,6 +175,13 @@ export function createLocalAppUpdateService(deps: LocalAppUpdateDeps) {
   return { checkForAppUpdate, installAppUpdate, getUpdateDiagnostics, isEnabled: () => enabled };
 }
 
+export function resolveDefaultLocalBuildsDir(): string {
+  return resolveLocalBuildsDir({
+    environment: process.env,
+    paseoHome: resolvePaseoHome(process.env),
+  });
+}
+
 export function createDefaultLocalAppUpdateService() {
   const paseoHome = resolvePaseoHome(process.env);
   return createLocalAppUpdateService({
@@ -183,13 +190,10 @@ export function createDefaultLocalAppUpdateService() {
       platform: process.platform,
       buildMetadata: readBuildMetadata({ appPath: app.getAppPath() }),
     },
-    buildsDir: resolveLocalBuildsDir({ environment: process.env, paseoHome }),
+    buildsDir: resolveDefaultLocalBuildsDir(),
     paseoHome,
     io: {
-      readState: () =>
-        readLocalUpdateState({
-          buildsDir: resolveLocalBuildsDir({ environment: process.env, paseoHome }),
-        }),
+      readState: () => readLocalUpdateState({ buildsDir: resolveDefaultLocalBuildsDir() }),
       readDetails: (folderPath) => readLocalUpdateDetails({ folderPath }),
       getLinkStatus: () => readApplicationsLinkStatus({}),
     },
