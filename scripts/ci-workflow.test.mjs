@@ -5,6 +5,7 @@ import test from "node:test";
 
 const repoRoot = new URL("../", import.meta.url);
 const ciWorkflowPath = new URL(".github/workflows/ci.yml", repoRoot);
+const playwrightWorkflowPath = new URL(".github/workflows/ci-playwright.yml", repoRoot);
 const dockerWorkflowPath = new URL(".github/workflows/docker.yml", repoRoot);
 const nixWorkflowPath = new URL(".github/workflows/nix.yml", repoRoot);
 const filtersPath = new URL(".github/ci-paths.yml", repoRoot);
@@ -19,10 +20,6 @@ const gatedCiJobs = new Map([
   ["desktop-tests-ubuntu", { name: "desktop-tests (ubuntu-latest)", contract: "desktop" }],
   ["app-tests", { name: "app-tests", contract: "app" }],
   ["sdk-tests", { name: "sdk-tests", contract: "sdk" }],
-  ["playwright-1", { name: "playwright (shard 1/4)", contract: "browser" }],
-  ["playwright-2", { name: "playwright (shard 2/4)", contract: "browser" }],
-  ["playwright-3", { name: "playwright (shard 3/4)", contract: "browser" }],
-  ["playwright-4", { name: "playwright (shard 4/4)", contract: "browser" }],
   ["relay-tests", { name: "relay-tests", contract: "relay" }],
 ]);
 
@@ -93,8 +90,24 @@ test("gated checks are statically named jobs with real job-level gating", () => 
   }
 });
 
+test("the shared-client e2e is a manual workflow, not a PR gate", () => {
+  const source = readFileSync(playwrightWorkflowPath, "utf8");
+  const trigger = source.split("jobs:", 1)[0];
+  assert.match(trigger, /^\s+workflow_dispatch:\s*$/m);
+  assert.doesNotMatch(trigger, /pull_request:|push:|merge_group:/);
+
+  const jobs = jobBlocks(readFileSync(ciWorkflowPath, "utf8"));
+  assert.ok(!jobs.has("playwright-1"));
+  assert.ok(!jobs.has("playwright-4"));
+});
+
 test("change gating allows superseded workflow runs to cancel", () => {
-  for (const workflowPath of [ciWorkflowPath, dockerWorkflowPath, nixWorkflowPath]) {
+  for (const workflowPath of [
+    ciWorkflowPath,
+    playwrightWorkflowPath,
+    dockerWorkflowPath,
+    nixWorkflowPath,
+  ]) {
     const source = readFileSync(workflowPath, "utf8");
     assert.doesNotMatch(
       source,
