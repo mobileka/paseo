@@ -1925,6 +1925,7 @@ export const en = {
   settings: {
     title: "Settings",
     loading: "Loading settings...",
+    searchPlaceholder: "Search settings",
     groups: {
       app: "App",
       host: "Host",

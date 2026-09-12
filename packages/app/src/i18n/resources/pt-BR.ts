@@ -1931,6 +1931,7 @@ export const ptBR: TranslationResources = {
   settings: {
     title: "Configurações",
     loading: "Carregando configurações...",
+    searchPlaceholder: "Pesquisar configurações",
     groups: {
       app: "App",
       host: "Host",

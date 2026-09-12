@@ -1945,6 +1945,7 @@ export const es: TranslationResources = {
   settings: {
     title: "Ajustes",
     loading: "Cargando configuración...",
+    searchPlaceholder: "Buscar en la configuración",
     groups: {
       app: "Aplicación",
       host: "Host",

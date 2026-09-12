@@ -1899,6 +1899,7 @@ export const ar: TranslationResources = {
   settings: {
     title: "إعدادات",
     loading: "جارٍ تحميل الإعدادات...",
+    searchPlaceholder: "البحث في الإعدادات",
     groups: {
       app: "برنامج",
       host: "Host",

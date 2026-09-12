@@ -78,8 +78,10 @@ import { AddHostModal } from "@/components/add-host-modal";
 import { AddRemoteSshHostModal } from "@/components/add-remote-ssh-host-modal";
 import { PairLinkModal } from "@/components/pair-link-modal";
 import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-section";
+import { filterSidebarItems } from "@/screens/settings/section-filter";
 import { EditorSection } from "@/screens/settings/editor-section";
 import { Button } from "@/components/ui/button";
+import { SearchField } from "@/components/ui/search-field";
 import { Switch } from "@/components/ui/switch";
 import { CommunityLinks } from "@/components/community-links";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -1101,22 +1103,54 @@ function SettingsSidebar({
   if (view.kind === "project") selectedHostSection = "projects";
   if (view.kind === "plugin") selectedHostSection = "plugins";
 
+  const [sectionQuery, setSectionQuery] = useState("");
+  const filteredSectionItems = filterSidebarItems({
+    items,
+    query: sectionQuery,
+    translate: t,
+    activeId: selectedSectionId,
+  });
+  const filteredHostItems = filterSidebarItems({
+    items: HOST_SECTION_ITEMS,
+    query: sectionQuery,
+    translate: t,
+    activeId: selectedHostSection,
+  });
+  const appGroupVisible = filteredSectionItems.length > 0;
+  const hostSectionsVisible = filteredHostItems.length > 0;
+  const nothingMatches = sectionQuery.trim() && !appGroupVisible && !hostSectionsVisible;
+
   const sidebarBody = (
     <>
-      <View style={sidebarStyles.list}>
-        <Text style={sidebarStyles.groupLabel}>{t("settings.groups.app")}</Text>
-        {items.map((item) => (
-          <SidebarSectionButton
-            key={item.id}
-            itemId={item.id}
-            label={t(item.labelKey)}
-            icon={item.icon}
-            isSelected={selectedSectionId === item.id}
-            onSelect={onSelectSection}
-          />
-        ))}
+      <View style={sidebarStyles.filterBar}>
+        <SearchField
+          value={sectionQuery}
+          onChangeText={setSectionQuery}
+          placeholder={t("settings.searchPlaceholder")}
+          clearAccessibilityLabel={t("settings.searchPlaceholder")}
+          testID="settings-section-search"
+          clearTestID="settings-section-search-clear"
+        />
       </View>
-      <SidebarSeparator />
+      {nothingMatches ? (
+        <Text style={sidebarStyles.noResultsText}>{t("common.empty.noResults")}</Text>
+      ) : null}
+      {appGroupVisible ? (
+        <View style={sidebarStyles.list}>
+          <Text style={sidebarStyles.groupLabel}>{t("settings.groups.app")}</Text>
+          {filteredSectionItems.map((item) => (
+            <SidebarSectionButton
+              key={item.id}
+              itemId={item.id}
+              label={t(item.labelKey)}
+              icon={item.icon}
+              isSelected={selectedSectionId === item.id}
+              onSelect={onSelectSection}
+            />
+          ))}
+        </View>
+      ) : null}
+      {appGroupVisible ? <SidebarSeparator /> : null}
       {hasHosts ? (
         <View style={sidebarStyles.list}>
           <Text style={sidebarStyles.groupLabel}>{t("settings.groups.host")}</Text>
@@ -1127,7 +1161,7 @@ function SettingsSidebar({
             onAddHost={onAddHost}
             enableBuiltInDaemonOption={enableBuiltInDaemonOption}
           />
-          {HOST_SECTION_ITEMS.map((item) => (
+          {filteredHostItems.map((item) => (
             <SidebarHostSectionButton
               key={item.id}
               itemId={item.id}
@@ -1817,6 +1851,16 @@ const sidebarStyles = StyleSheet.create((theme) => ({
     paddingVertical: theme.spacing[2],
     paddingHorizontal: theme.spacing[2],
     gap: theme.spacing[1],
+  },
+  filterBar: {
+    paddingHorizontal: theme.spacing[2],
+    paddingTop: theme.spacing[2],
+  },
+  noResultsText: {
+    fontSize: theme.fontSize.base,
+    color: theme.colors.foregroundMuted,
+    paddingHorizontal: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
   },
   groupLabel: {
     fontSize: theme.fontSize.base,

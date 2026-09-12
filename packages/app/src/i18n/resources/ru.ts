@@ -1930,6 +1930,7 @@ export const ru: TranslationResources = {
   settings: {
     title: "Настройки",
     loading: "Загрузка настроек...",
+    searchPlaceholder: "Поиск по настройкам",
     groups: {
       app: "Приложение",
       host: "Хост",

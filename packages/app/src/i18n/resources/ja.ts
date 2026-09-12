@@ -1917,6 +1917,7 @@ export const ja: TranslationResources = {
   settings: {
     title: "設定",
     loading: "設定を読み込み中...",
+    searchPlaceholder: "設定を検索",
     groups: {
       app: "アプリ",
       host: "ホスト",
