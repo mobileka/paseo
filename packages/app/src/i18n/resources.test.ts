@@ -11,14 +11,21 @@ import { ptBR } from "./resources/pt-BR";
 import { ru } from "./resources/ru";
 import { zhCN } from "./resources/zh-CN";
 
-function flattenKeys(value: unknown, prefix = ""): string[] {
-  if (typeof value !== "object" || value === null) {
-    return [prefix];
-  }
-
-  const entries = Object.entries(value);
-  return entries.flatMap(([key, child]) => flattenKeys(child, prefix ? `${prefix}.${key}` : key));
-}
+/**
+ * The fork adds keys to English only, so the non-English resources are typed
+ * deep-partial. These complete views back the tests that pin specific
+ * existing translations: a key missing there is exactly what should fail.
+ */
+const completeResources = {
+  ar: ar as typeof en,
+  es: es as typeof en,
+  fr: fr as typeof en,
+  ja: ja as typeof en,
+  ko: ko as typeof en,
+  ptBR: ptBR as typeof en,
+  ru: ru as typeof en,
+  zhCN: zhCN as typeof en,
+} as const;
 
 function flattenStrings(value: unknown, prefix = ""): Record<string, string> {
   if (typeof value === "string") {
@@ -47,6 +54,11 @@ function findInterpolationMismatches(resource: unknown): string[] {
   const englishStrings = flattenStrings(en);
   const localeStrings = flattenStrings(resource);
   return Object.entries(englishStrings).flatMap(([key, value]) => {
+    // The fork adds keys to English only; a locale without the key falls back
+    // to English at runtime, so there is nothing to compare.
+    if (localeStrings[key] === undefined) {
+      return [];
+    }
     const expected = [...value.matchAll(interpolationPattern)].map((match) => match[0]).sort();
     const actual = [...(localeStrings[key] ?? "").matchAll(interpolationPattern)]
       .map((match) => match[0])
@@ -104,18 +116,6 @@ function findUntranslatedConnectionErrors(): string[] {
 }
 
 describe("translation resources", () => {
-  it("keeps all supported language keys in sync with English", () => {
-    const englishKeys = flattenKeys(en).sort();
-    expect(flattenKeys(ar).sort()).toEqual(englishKeys);
-    expect(flattenKeys(es).sort()).toEqual(englishKeys);
-    expect(flattenKeys(fr).sort()).toEqual(englishKeys);
-    expect(flattenKeys(ja).sort()).toEqual(englishKeys);
-    expect(flattenKeys(ko).sort()).toEqual(englishKeys);
-    expect(flattenKeys(ptBR).sort()).toEqual(englishKeys);
-    expect(flattenKeys(ru).sort()).toEqual(englishKeys);
-    expect(flattenKeys(zhCN).sort()).toEqual(englishKeys);
-  });
-
   it("keeps non-English supported languages translated beyond fallback labels", () => {
     const totalStrings = Object.keys(flattenStrings(en)).length;
     const maxFallbackStrings = Math.floor(totalStrings * 0.25);
@@ -130,7 +130,7 @@ describe("translation resources", () => {
   });
 
   it("localizes the pull request empty state in every supported language", () => {
-    for (const resource of [ar, es, fr, ja, ko, ptBR, ru, zhCN]) {
+    for (const resource of Object.values(completeResources)) {
       expect(resource.panels.pullRequest.emptyTitle).not.toBe(en.panels.pullRequest.emptyTitle);
       expect(resource.panels.pullRequest.emptyDescription).not.toBe(
         en.panels.pullRequest.emptyDescription,
@@ -150,37 +150,43 @@ describe("translation resources", () => {
   });
 
   it("keeps reported Spanish settings and scripts labels clean", () => {
-    expect(es.workspace.scripts.title).toBe("Scripts");
-    expect(es.settings.general.terminalScrollback.label).toBe("Historial de terminal");
-    expect(es.settings.project.scripts.title).toBe("Scripts");
+    expect(completeResources.es.workspace.scripts.title).toBe("Scripts");
+    expect(completeResources.es.settings.general.terminalScrollback.label).toBe(
+      "Historial de terminal",
+    );
+    expect(completeResources.es.settings.project.scripts.title).toBe("Scripts");
   });
 
   it("uses the Russian term for continuing a session in copied commands", () => {
-    expect(ru.workspace.tabs.menu.copyResumeCommand).toBe("Копировать команду продолжения");
-    expect(ru.workspace.tabs.toasts.resumeCommandCopiedLabel).toBe("команда продолжения");
+    expect(completeResources.ru.workspace.tabs.menu.copyResumeCommand).toBe(
+      "Копировать команду продолжения",
+    );
+    expect(completeResources.ru.workspace.tabs.toasts.resumeCommandCopiedLabel).toBe(
+      "команда продолжения",
+    );
   });
 
   it("keeps model count labels spaced around the count", () => {
-    expect(ar.modelSelector.modelCountPlural).toBe("{{count}} نماذج");
-    expect(es.modelSelector.modelCountPlural).toBe("{{count}} modelos");
-    expect(fr.modelSelector.modelCountPlural).toBe("{{count}} modèles");
-    expect(ja.modelSelector.modelCountPlural).toBe("{{count}}つのモデル");
-    expect(ko.modelSelector.modelCountPlural).toBe("모델 {{count}}개");
-    expect(ptBR.modelSelector.modelCountPlural).toBe("{{count}} modelos");
-    expect(ru.modelSelector.modelCountPlural).toBe("{{count}} моделей");
-    expect(zhCN.modelSelector.modelCountPlural).toBe("{{count}} 个模型");
-    expect(ar.settings.providers.models.many).toBe("{{count}} نماذج");
-    expect(es.settings.providers.models.many).toBe("{{count}} modelos");
-    expect(fr.settings.providers.models.many).toBe("{{count}} modèles");
-    expect(ja.settings.providers.models.many).toBe("{{count}}つのモデル");
-    expect(ptBR.settings.providers.models.many).toBe("{{count}} modelos");
-    expect(ru.settings.providers.models.many).toBe("{{count}} моделей");
-    expect(zhCN.settings.providers.models.many).toBe("{{count}} 个 Model");
+    expect(completeResources.ar.modelSelector.modelCountPlural).toBe("{{count}} نماذج");
+    expect(completeResources.es.modelSelector.modelCountPlural).toBe("{{count}} modelos");
+    expect(completeResources.fr.modelSelector.modelCountPlural).toBe("{{count}} modèles");
+    expect(completeResources.ja.modelSelector.modelCountPlural).toBe("{{count}}つのモデル");
+    expect(completeResources.ko.modelSelector.modelCountPlural).toBe("모델 {{count}}개");
+    expect(completeResources.ptBR.modelSelector.modelCountPlural).toBe("{{count}} modelos");
+    expect(completeResources.ru.modelSelector.modelCountPlural).toBe("{{count}} моделей");
+    expect(completeResources.zhCN.modelSelector.modelCountPlural).toBe("{{count}} 个模型");
+    expect(completeResources.ar.settings.providers.models.many).toBe("{{count}} نماذج");
+    expect(completeResources.es.settings.providers.models.many).toBe("{{count}} modelos");
+    expect(completeResources.fr.settings.providers.models.many).toBe("{{count}} modèles");
+    expect(completeResources.ja.settings.providers.models.many).toBe("{{count}}つのモデル");
+    expect(completeResources.ptBR.settings.providers.models.many).toBe("{{count}} modelos");
+    expect(completeResources.ru.settings.providers.models.many).toBe("{{count}} моделей");
+    expect(completeResources.zhCN.settings.providers.models.many).toBe("{{count}} 个 Model");
   });
 
   it("preserves reviewed Korean status labels", () => {
-    expect(ko.common.states.starting).toBe("시작 중...");
-    expect(ko.desktop.daemon.status.notRunning).toBe("실행 중이 아님");
+    expect(completeResources.ko.common.states.starting).toBe("시작 중...");
+    expect(completeResources.ko.desktop.daemon.status.notRunning).toBe("실행 중이 아님");
   });
 
   it("labels the immediate add-to-chat action without an ellipsis", () => {
