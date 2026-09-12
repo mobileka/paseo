@@ -1950,6 +1950,7 @@ export const fr: TranslationResources = {
   settings: {
     title: "Paramètres",
     loading: "Chargement des paramètres...",
+    searchPlaceholder: "Rechercher dans les paramètres",
     groups: {
       app: "Application",
       host: "Host",

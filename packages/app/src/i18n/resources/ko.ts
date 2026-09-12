@@ -1909,6 +1909,7 @@ export const ko: TranslationResources = {
   settings: {
     title: "설정",
     loading: "설정 불러오는 중...",
+    searchPlaceholder: "설정 검색",
     groups: {
       app: "앱",
       host: "호스트",
