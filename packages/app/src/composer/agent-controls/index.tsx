@@ -69,6 +69,9 @@ import {
   type AgentControlCommandCenterSource,
 } from "@/command-center/agent-control-registration";
 import { useComposerKeyboardScope } from "@/composer/keyboard-scope";
+import { useThinkingCycleShortcut } from "@/composer/agent-controls/use-agent-control-shortcuts";
+import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
+import { Shortcut } from "@/components/ui/shortcut";
 import { isNative } from "@/constants/platform";
 import {
   resolveComposerControlDensity,
@@ -711,6 +714,13 @@ function ControlledAgentControls({
     [onSelectThinkingOption],
   );
 
+  useThinkingCycleShortcut({
+    disabled,
+    options: formattedThinkingOptions,
+    selectedId: selectedThinkingOptionId,
+    onSelect: onSelectThinkingOption,
+  });
+
   const handleSheetModelSelect = useCallback(
     (nextProviderId: string, modelId: string) => {
       pickSheetModel({
@@ -891,6 +901,9 @@ const DESKTOP_SEARCH_THRESHOLD = 6;
 function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
+  const { isActiveComposer } = useComposerKeyboardScope();
+  const modelPickShortcutKeys = useShortcutKeys("pick-model");
+  const cycleEffortShortcutKeys = useShortcutKeys("cycle-effort");
   const {
     provider,
     providerOptions,
@@ -1004,11 +1017,17 @@ function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
                 desktopPlacement="top-start"
                 desktopMinWidth={360}
                 toolbar={modelToolbar}
+                keyboardPickShortcut
               />
             </View>
           </TooltipTrigger>
           <TooltipContent side="top" align="center" offset={8}>
-            <Text style={styles.tooltipText}>{t(getAgentControlHintKey("model"))}</Text>
+            <View style={styles.tooltipRow}>
+              <Text style={styles.tooltipText}>{t(getAgentControlHintKey("model"))}</Text>
+              {isActiveComposer && modelPickShortcutKeys ? (
+                <Shortcut chord={modelPickShortcutKeys} />
+              ) : null}
+            </View>
           </TooltipContent>
         </Tooltip>
       ) : null}
@@ -1035,7 +1054,12 @@ function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
               />
             </TooltipTrigger>
             <TooltipContent side="top" align="center" offset={8}>
-              <Text style={styles.tooltipText}>{t(getAgentControlHintKey("thinking"))}</Text>
+              <View style={styles.tooltipRow}>
+                <Text style={styles.tooltipText}>{t(getAgentControlHintKey("thinking"))}</Text>
+                {isActiveComposer && cycleEffortShortcutKeys ? (
+                  <Shortcut chord={cycleEffortShortcutKeys} />
+                ) : null}
+              </View>
             </TooltipContent>
           </Tooltip>
           <Combobox
@@ -1270,6 +1294,7 @@ function SheetAgentControlsContent(props: SheetAgentControlsContentProps) {
       serverId={modelSelectorServerId}
       glyphSize={glyphSize}
       canSwitchProvider={canSwitchProvider}
+      keyboardPickShortcut
     >
       {sheetControls}
     </CompactModelSheet>
@@ -1984,6 +2009,11 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foreground,
     fontSize: theme.fontSize.base,
     lineHeight: theme.fontSize.base * 1.4,
+  },
+  tooltipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[2],
   },
   combinedSheetControls: {
     gap: theme.spacing[1],

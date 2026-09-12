@@ -85,6 +85,8 @@ const MESSAGE_INPUT_DISPATCH: Record<
   "voice-toggle": { id: "message-input.voice-toggle", scope: "message-input" },
   "voice-mute-toggle": { id: "message-input.voice-mute-toggle", scope: "message-input" },
   "mode-cycle": { id: "message-input.mode-cycle", scope: "message-input" },
+  "model-pick": { id: "message-input.model-pick", scope: "message-input" },
+  "thinking-cycle": { id: "message-input.thinking-cycle", scope: "message-input" },
 };
 
 function hasPayloadKey<K extends "index" | "delta" | "kind">(

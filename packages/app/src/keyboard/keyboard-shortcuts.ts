@@ -196,6 +196,8 @@ export const SHORTCUT_HELP_ROW_ORDER: Record<ShortcutSectionId, readonly string[
   "agent-input": [
     "focus-message-input",
     "cycle-agent-mode",
+    "pick-model",
+    "cycle-effort",
     "voice-toggle",
     "dictation-toggle",
     "agent-interrupt",
@@ -243,6 +245,8 @@ const SHORTCUT_HELP_LABEL_KEYS: Record<string, string> = {
   "cycle-theme": "settings.shortcuts.help.cycleTheme",
   "focus-message-input": "settings.shortcuts.help.focusMessageInput",
   "cycle-agent-mode": "settings.shortcuts.help.cycleAgentMode",
+  "pick-model": "settings.shortcuts.help.pickModel",
+  "cycle-effort": "settings.shortcuts.help.cycleEffort",
   "voice-toggle": "settings.shortcuts.help.toggleVoiceMode",
   "dictation-toggle": "settings.shortcuts.help.startStopDictation",
   "agent-interrupt": "settings.shortcuts.help.interruptAgent",
@@ -1083,6 +1087,35 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
       id: "cycle-agent-mode",
       section: "agent-input",
       label: "Cycle agent mode",
+    },
+  },
+  // The first multi-step chords. `Ctrl` is the literal Control key on every
+  // platform, so one binding serves mac and non-mac and no platform split is
+  // needed. `terminal: false` keeps the terminal's own Ctrl+X prefix working.
+  {
+    id: "message-input-model-pick-ctrl-x-ctrl-m",
+    action: "message-input.action",
+    combo: "Ctrl+X Ctrl+M",
+    repeat: false,
+    when: { commandCenter: false, terminal: false },
+    payload: { type: "message-input", kind: "model-pick" },
+    help: {
+      id: "pick-model",
+      section: "agent-input",
+      label: "Pick model",
+    },
+  },
+  {
+    id: "message-input-thinking-cycle-ctrl-x-ctrl-tab",
+    action: "message-input.action",
+    combo: "Ctrl+X Ctrl+Tab",
+    repeat: false,
+    when: { commandCenter: false, terminal: false },
+    payload: { type: "message-input", kind: "thinking-cycle" },
+    help: {
+      id: "cycle-effort",
+      section: "agent-input",
+      label: "Cycle effort",
     },
   },
   {

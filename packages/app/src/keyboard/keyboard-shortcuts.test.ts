@@ -3,6 +3,7 @@ import { formatShortcut } from "@/utils/format-shortcut";
 import {
   buildKeyboardShortcutHelpSections,
   buildEffectiveBindings,
+  DEFAULT_BINDINGS,
   getBindingIdForAction,
   getDefaultKeysForAction,
   getWorkspaceIndexJumpModifierKey,
@@ -831,6 +832,36 @@ describe("keyboard-shortcut help sections", () => {
       "toggle-command-center",
       "search-files",
     ]);
+  });
+
+  it("lists the composer chord rows under agent input on every platform", () => {
+    for (const platform of [
+      { isMac: true, isDesktop: true },
+      { isMac: false, isDesktop: true },
+      { isMac: true, isDesktop: false },
+      { isMac: false, isDesktop: false },
+    ]) {
+      const agentInput = buildKeyboardShortcutHelpSections(platform).find(
+        (section) => section.id === "agent-input",
+      );
+      expect(agentInput?.rows.map((row) => row.id)).toContain("pick-model");
+      expect(agentInput?.rows.map((row) => row.id)).toContain("cycle-effort");
+    }
+  });
+
+  it("parses the composer chord bindings into two Ctrl steps", () => {
+    const modelPick = DEFAULT_BINDINGS.find(
+      (binding) => binding.id === "message-input-model-pick-ctrl-x-ctrl-m",
+    );
+    const thinkingCycle = DEFAULT_BINDINGS.find(
+      (binding) => binding.id === "message-input-thinking-cycle-ctrl-x-ctrl-tab",
+    );
+    expect(modelPick?.parsedChord).toHaveLength(2);
+    expect(modelPick?.parsedChord[0]).toMatchObject({ ctrl: true, code: "KeyX" });
+    expect(modelPick?.parsedChord[1]).toMatchObject({ ctrl: true, code: "KeyM" });
+    expect(thinkingCycle?.parsedChord).toHaveLength(2);
+    expect(thinkingCycle?.parsedChord[0]).toMatchObject({ ctrl: true, code: "KeyX" });
+    expect(thinkingCycle?.parsedChord[1]).toMatchObject({ ctrl: true, code: "Tab" });
   });
 
   it("reuses the project-picker binding ids for rebindable file search", () => {
