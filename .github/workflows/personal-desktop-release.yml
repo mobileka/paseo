@@ -127,7 +127,7 @@ jobs:
             if ! gh api --method POST "repos/$REPO/releases" \
                 -f tag_name="$TAG" \
                 -f name="$TITLE" \
-                -f draft=true \
+                -F draft=true \
                 -f target_commitish="$SHA" \
                 -F body=@"release-assets/release-notes.md" > /dev/null; then
               echo "::warning::draft create attempt $attempt failed; re-checking"
@@ -170,7 +170,7 @@ jobs:
           done
 
           for attempt in 1 2 3 4 5 6 7 8 9 10; do
-            if gh api --method PATCH "repos/$REPO/releases/$release_id" -f draft=false > /dev/null; then
+            if gh api --method PATCH "repos/$REPO/releases/$release_id" -F draft=false > /dev/null; then
               echo "Published $TAG"
               exit 0
             fi
