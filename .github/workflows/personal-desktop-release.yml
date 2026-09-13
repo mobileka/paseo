@@ -116,7 +116,8 @@ jobs:
           # release list, and assets are reconciled by name and size.
           find_release_id() {
             gh api "repos/$REPO/releases?per_page=100" \
-              --jq ".[] | select(.tag_name == \"$TAG\") | .id" 2>/dev/null | head -n 1
+              --jq "[.[] | select(.tag_name == \"$TAG\")] | sort_by(.draft) | .[0].id // empty" \
+              2>/dev/null | head -n 1
           }
 
           release_id=""
@@ -124,15 +125,21 @@ jobs:
             release_id="$(find_release_id || true)"
             [ -n "$release_id" ] && break
             echo "Creating draft release $TAG (attempt $attempt)"
-            if ! gh api --method POST "repos/$REPO/releases" \
+            created_id="$(gh api --method POST "repos/$REPO/releases" \
                 -f tag_name="$TAG" \
                 -f name="$TITLE" \
-                -F draft=true \
+                -f draft=true \
                 -f target_commitish="$SHA" \
-                -F body=@"release-assets/release-notes.md" > /dev/null; then
-              echo "::warning::draft create attempt $attempt failed; re-checking"
-              sleep 5
+                -F body=@"release-assets/release-notes.md" \
+                --jq '.id' 2>/dev/null || true)"
+            if [ -n "$created_id" ]; then
+              release_id="$created_id"
+              break
             fi
+            # A 5xx can still mean the release was created; give the release
+            # list time to see it before trying to create again.
+            echo "::warning::draft create attempt $attempt failed; re-checking"
+            sleep 15
           done
           [ -n "$release_id" ] || { echo "::error::could not create a release for $TAG"; exit 1; }
 
