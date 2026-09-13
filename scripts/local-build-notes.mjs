@@ -38,7 +38,7 @@ function headingVersion(heading) {
   return normalizeVersion(plain);
 }
 
-export function extractReleaseNotes(markdown, version) {
+function findSection(markdown, version) {
   const wanted = normalizeVersion(version);
   if (!wanted) return null;
 
@@ -58,6 +58,19 @@ export function extractReleaseNotes(markdown, version) {
 
   if (start === -1) return null;
   return lines.slice(start, end).join("\n").trim();
+}
+
+export function extractReleaseNotes(markdown, version) {
+  const wanted = normalizeVersion(version);
+  if (!wanted) return null;
+
+  const exact = findSection(markdown, wanted);
+  if (exact) return exact;
+
+  // Fork versions carry a `-personal.N` prerelease that upstream changelogs
+  // never use, so fall back to the base version's section.
+  const base = wanted.split("-")[0];
+  return base === wanted ? null : findSection(markdown, base);
 }
 
 function main() {

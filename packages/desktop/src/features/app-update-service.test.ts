@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createAppUpdateService, type AppUpdateDeps } from "./app-update-service";
 import type { GithubUpdateSource } from "./github-app-update";
+import type { GithubDownloadProgress } from "./github-install";
 import type { GithubReleaseCandidate } from "./github-releases";
 import type {
   ApplicationsLinkStatus,
@@ -337,10 +338,34 @@ describe("createAppUpdateService", () => {
       const result = await service.installAppUpdate({ currentVersion: "0.8.0", stopDaemon });
       expect(result.status).toBe("installed");
       expect(result.version).toBe("0.8.0");
-      expect(github.install).toHaveBeenCalledWith(GITHUB_CANDIDATE);
+      expect(github.install).toHaveBeenCalledWith(GITHUB_CANDIDATE, { onProgress: undefined });
       expect(deps.repointLink).toHaveBeenCalledWith("/fake/builds/0.8.0_bbbbbbb/Paseo.app");
       vi.advanceTimersByTime(0);
       expect(deps.quit).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("forwards GitHub download progress to the caller", async () => {
+    vi.useFakeTimers();
+    try {
+      const github = makeGithubSource({ candidate: GITHUB_CANDIDATE });
+      const service = createAppUpdateService(makeDeps({ github, state: null }));
+      const progress: GithubDownloadProgress[] = [];
+
+      const result = await service.installAppUpdate({
+        currentVersion: "0.8.0",
+        stopDaemon: vi.fn(async () => undefined),
+        onProgress: (update) => progress.push(update),
+      });
+
+      expect(result.status).toBe("installed");
+      const options = vi.mocked(github.install).mock.calls[0]?.[1];
+      expect(options?.onProgress).toBeTypeOf("function");
+      options?.onProgress?.({ receivedBytes: 5, totalBytes: 10 });
+      expect(progress).toEqual([{ receivedBytes: 5, totalBytes: 10 }]);
+      vi.advanceTimersByTime(0);
     } finally {
       vi.useRealTimers();
     }

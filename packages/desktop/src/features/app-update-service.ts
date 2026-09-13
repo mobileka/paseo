@@ -3,6 +3,7 @@ import log from "electron-log/main";
 import path from "node:path";
 import { resolvePaseoHome } from "@getpaseo/server";
 import type { GithubReleaseCandidate } from "./github-releases.js";
+import type { GithubDownloadProgress } from "./github-install.js";
 import { createDefaultGithubUpdateSource, type GithubUpdateSource } from "./github-app-update.js";
 import {
   describeLocalUpdateDiagnostics,
@@ -255,6 +256,7 @@ export function createAppUpdateService(deps: AppUpdateDeps) {
   async function installAppUpdate(input: {
     currentVersion: string;
     stopDaemon: () => Promise<unknown>;
+    onProgress?: (progress: GithubDownloadProgress) => void;
   }): Promise<AppUpdateInstallResult> {
     if (!enabled) {
       return { status: "failed", version: null, message: "Updates are disabled for this build." };
@@ -292,7 +294,9 @@ export function createAppUpdateService(deps: AppUpdateDeps) {
       } else {
         // Download and stage while the daemon is still running; only the link
         // swap below needs it stopped.
-        const staged = await deps.github.install(update.release);
+        const staged = await deps.github.install(update.release, {
+          onProgress: input.onProgress,
+        });
         await input.stopDaemon();
         appPath = staged.appPath;
         version = staged.version;

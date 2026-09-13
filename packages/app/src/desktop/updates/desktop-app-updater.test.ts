@@ -370,6 +370,47 @@ describe("desktop app updater — install", () => {
       },
     ]);
   });
+
+  it("records download progress during an install and clears it when the install ends", async () => {
+    const { updater, port } = createUpdater();
+    port.nextInstallResult(buildFakeInstallResult({ status: "installed" }));
+
+    const pending = updater.installUpdate();
+    updater.setInstallProgress({ percent: 42, receivedBytes: 42, totalBytes: 100 });
+
+    expect(updater.getSnapshot().installProgress).toEqual({
+      percent: 42,
+      receivedBytes: 42,
+      totalBytes: 100,
+    });
+
+    await pending;
+
+    expect(updater.getSnapshot().installProgress).toBeNull();
+  });
+
+  it("ignores progress updates outside an install", () => {
+    const { updater } = createUpdater();
+
+    updater.setInstallProgress({ percent: 42, receivedBytes: 42, totalBytes: 100 });
+
+    expect(updater.getSnapshot().installProgress).toBeNull();
+  });
+
+  it("clears download progress when the install fails", async () => {
+    const { updater, port } = createUpdater();
+    port.nextInstallResult(
+      buildFakeInstallResult({ status: "failed", message: "download failed" }),
+    );
+
+    const pending = updater.installUpdate();
+    updater.setInstallProgress({ percent: 12, receivedBytes: 12, totalBytes: 100 });
+    expect(updater.getSnapshot().installProgress?.percent).toBe(12);
+
+    await pending;
+
+    expect(updater.getSnapshot().installProgress).toBeNull();
+  });
 });
 
 describe("desktop app updater — subscribe", () => {

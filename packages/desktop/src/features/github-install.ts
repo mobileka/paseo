@@ -38,12 +38,22 @@ export interface GithubStagedBuild {
   commit: string;
 }
 
+export interface GithubDownloadProgress {
+  receivedBytes: number;
+  totalBytes: number;
+}
+
 /**
  * The three steps that cannot run in a unit test process: the network
  * download, the archive extraction, and launching the staged binary.
  */
 export interface GithubInstallIo {
-  download: (input: { url: string; destination: string }) => Promise<void>;
+  download: (input: {
+    url: string;
+    destination: string;
+    totalBytes?: number;
+    onProgress?: (progress: GithubDownloadProgress) => void;
+  }) => Promise<void>;
   extractZip: (input: { zipPath: string; destination: string }) => Promise<void>;
   smokeTest: (appPath: string) => Promise<void>;
 }
@@ -128,10 +138,12 @@ export async function stageGithubRelease({
   buildsDir,
   candidate,
   io,
+  onProgress,
 }: {
   buildsDir: string;
   candidate: GithubReleaseCandidate;
   io: GithubInstallIo;
+  onProgress?: (progress: GithubDownloadProgress) => void;
 }): Promise<GithubStagedBuild> {
   const tag = sanitizeFolderSegment(candidate.tag);
   const downloadsDir = path.join(buildsDir, DOWNLOADS_DIR_NAME);
@@ -141,7 +153,12 @@ export async function stageGithubRelease({
   rmSync(stagingDir, { recursive: true, force: true });
 
   try {
-    await io.download({ url: candidate.zipAsset.downloadUrl, destination: zipPath });
+    await io.download({
+      url: candidate.zipAsset.downloadUrl,
+      destination: zipPath,
+      totalBytes: candidate.zipAsset.size,
+      onProgress,
+    });
 
     const size = statSync(zipPath).size;
     if (size <= 0) {
@@ -219,14 +236,28 @@ export async function stageGithubRelease({
 async function downloadToFile({
   url,
   destination,
+  totalBytes,
+  onProgress,
 }: {
   url: string;
   destination: string;
+  totalBytes?: number;
+  onProgress?: (progress: GithubDownloadProgress) => void;
 }): Promise<void> {
   const response = await net.fetch(url, { redirect: "follow" });
   if (!response.ok || !response.body) {
     throw new GithubReleaseError(`Release download failed (HTTP ${response.status}).`);
   }
+
+  const declaredTotal = Number(response.headers.get("content-length") ?? "0");
+  let totalBytesKnown = 0;
+  if (totalBytes && totalBytes > 0) {
+    totalBytesKnown = totalBytes;
+  } else if (Number.isFinite(declaredTotal) && declaredTotal > 0) {
+    totalBytesKnown = declaredTotal;
+  }
+  let receivedBytes = 0;
+  let lastPercent = -1;
 
   const file = createWriteStream(destination);
   try {
@@ -234,6 +265,14 @@ async function downloadToFile({
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      receivedBytes += value.byteLength;
+      if (onProgress && totalBytesKnown > 0) {
+        const percent = Math.min(100, Math.floor((receivedBytes / totalBytesKnown) * 100));
+        if (percent !== lastPercent) {
+          lastPercent = percent;
+          onProgress({ receivedBytes, totalBytes: totalBytesKnown });
+        }
+      }
       if (!file.write(value)) {
         await once(file, "drain");
       }
@@ -243,6 +282,9 @@ async function downloadToFile({
       file.on("finish", resolve);
       file.end();
     });
+    if (onProgress && totalBytesKnown > 0 && receivedBytes > 0 && lastPercent < 100) {
+      onProgress({ receivedBytes, totalBytes: totalBytesKnown });
+    }
   } catch (error) {
     file.destroy();
     throw error;

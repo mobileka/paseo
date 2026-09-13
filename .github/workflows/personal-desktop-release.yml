@@ -37,11 +37,25 @@ jobs:
           short_sha="${sha:0:7}"
           built_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
           stamp="$(date -u '+%Y%m%d-%H%M')"
+          base_version="$(node -p "require('./packages/desktop/package.json').version")"
+          fork_number=1
+          while IFS= read -r tag_sha; do
+            if [ -z "$tag_sha" ]; then
+              continue
+            fi
+            if [ "$tag_sha" = "$sha" ]; then
+              continue
+            fi
+            fork_number=$((fork_number + 1))
+          done < <(git tag --merged HEAD --list 'personal-*' --format='%(objectname)')
+          fork_version="${base_version}-personal.${fork_number}"
           {
             echo "sha=$sha"
             echo "short_sha=$short_sha"
             echo "built_at=$built_at"
             echo "tag=personal-${stamp}-${short_sha}"
+            echo "fork_version=$fork_version"
+            echo "fork_number=$fork_number"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build web app
@@ -49,7 +63,7 @@ jobs:
           set -euo pipefail
           npm run build:app-deps:clean
           cd packages/app
-          PASEO_WEB_PLATFORM=electron npx expo export --platform web
+          PASEO_WEB_PLATFORM=electron EXPO_PUBLIC_PASEO_APP_VERSION="${{ steps.meta.outputs.fork_version }}" npx expo export --platform web
 
       - name: Build server stack and desktop main
         run: |
@@ -67,6 +81,8 @@ jobs:
             --config electron-builder.yml \
             --config.mac.identity=null \
             --config.mac.notarize=false \
+            --config.extraMetadata.version="${{ steps.meta.outputs.fork_version }}" \
+            --config.buildVersion="${{ steps.meta.outputs.fork_number }}" \
             --config.extraMetadata.buildSha="${{ steps.meta.outputs.sha }}" \
             --config.extraMetadata.builtAt="${{ steps.meta.outputs.built_at }}"
 

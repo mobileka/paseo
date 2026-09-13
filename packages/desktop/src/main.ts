@@ -15,6 +15,7 @@ import {
   BrowserWindow,
   ClipboardItem,
   clipboard,
+  dialog,
   Menu,
   ipcMain,
   nativeImage,
@@ -25,7 +26,7 @@ import {
   shell,
   webContents,
 } from "electron";
-import { registerDaemonManager } from "./daemon/daemon-manager.js";
+import { registerDaemonManager, checkForAppUpdateNow } from "./daemon/daemon-manager.js";
 import { parsePassthroughCliArgsFromArgv, runPassthroughCli } from "./daemon/cli/passthrough.js";
 import { closeAllTransportSessions } from "./daemon/local-transport.js";
 import {
@@ -53,6 +54,8 @@ import { createBrowserCaptureService } from "./features/browser-capture.js";
 import { registerEditorTargetHandlers } from "./features/editor-targets/ipc.js";
 import { resolveAppIconPath } from "./features/stamped-icon.js";
 import { setupApplicationMenu } from "./features/menu.js";
+import { applyAboutPanelOptions } from "./features/about-panel.js";
+import { createManualUpdateCheck } from "./features/manual-update-check.js";
 import {
   BROWSER_NEW_TAB_REQUEST_EVENT,
   decideBrowserWindowOpenRequest,
@@ -950,10 +953,39 @@ async function bootstrap(): Promise<void> {
   });
 
   await applyAppIcon();
+  applyAboutPanelOptions();
+  const runManualUpdateCheck = createManualUpdateCheck({
+    check: checkForAppUpdateNow,
+    notifyRenderer: () => {
+      const win = BrowserWindow.getFocusedWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send("paseo:event:check-for-updates", { intent: "manual" });
+      }
+    },
+    showMessageBox: async (input) => {
+      const win = BrowserWindow.getFocusedWindow();
+      const options: Electron.MessageBoxOptions = {
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        buttons: ["OK"],
+      };
+      if (win && !win.isDestroyed()) {
+        await dialog.showMessageBox(win, options);
+        return;
+      }
+      await dialog.showMessageBox(options);
+    },
+  });
   setupApplicationMenu({
     onNewWindow: () => {
       void desktopWindowOwner.openAdditional().catch((error) => {
         log.error("[window] failed to create window from menu", error);
+      });
+    },
+    onCheckForUpdates: () => {
+      void runManualUpdateCheck().catch((error) => {
+        log.error("[app-updates] manual update check failed", error);
       });
     },
   });

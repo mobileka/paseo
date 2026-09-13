@@ -74,7 +74,7 @@ describe("resolveUpdateCalloutDescriptor", () => {
     );
 
     expect(descriptor?.title).toBe("Installing update");
-    expect(descriptor?.body).toEqual({ kind: "installing" });
+    expect(descriptor?.body).toEqual({ kind: "installing", progress: null });
     expect(descriptor?.showGiftIcon).toBe(false);
     expect(descriptor?.variant).toBe("default");
     expect(descriptor?.actions).toEqual([
@@ -82,6 +82,14 @@ describe("resolveUpdateCalloutDescriptor", () => {
       { role: "install", label: "Installing...", variant: "primary", disabled: true },
     ]);
     expect(descriptor?.dismissalKey).toBe("desktop-update:installing:1.2.3");
+  });
+
+  it("carries download progress into the installing body", () => {
+    const descriptor = resolveUpdateCalloutDescriptor(
+      input({ status: "installing", isInstalling: true, installProgressPercent: 37 }),
+    );
+
+    expect(descriptor?.body).toEqual({ kind: "installing", progress: 37 });
   });
 
   it("shows a retry action and surfaces the error message on error", () => {

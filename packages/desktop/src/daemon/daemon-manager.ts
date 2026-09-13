@@ -23,6 +23,7 @@ import {
   createDefaultAppUpdateService,
   resolveDefaultLocalBuildsDir,
 } from "../features/app-update-service.js";
+import type { GithubDownloadProgress } from "../features/github-install.js";
 import { readLocalUpdateStateSignature } from "../features/local-updates.js";
 import {
   getBundledCliShimPath,
@@ -287,7 +288,11 @@ async function startDaemon(): Promise<DesktopDaemonStatus> {
       home,
       timeoutMs: 30_000,
       ...invocation,
-      env: { ...invocation.env, PASEO_CLI: getBundledCliShimPath() },
+      env: {
+        ...invocation.env,
+        PASEO_CLI: getBundledCliShimPath(),
+        PASEO_DAEMON_VERSION: resolveDesktopAppVersion(),
+      },
       mode: "managed",
       desktopManaged: true,
       onAcquired: (instance) => {
@@ -374,6 +379,29 @@ function getAppUpdateService() {
   return appUpdateService;
 }
 
+export async function checkForAppUpdateNow() {
+  return await getAppUpdateService().checkForAppUpdate({
+    currentVersion: resolveDesktopAppVersion(),
+  });
+}
+
+function broadcastAppUpdateProgress(progress: GithubDownloadProgress): void {
+  const percent =
+    progress.totalBytes > 0
+      ? Math.min(100, Math.max(0, Math.round((progress.receivedBytes / progress.totalBytes) * 100)))
+      : null;
+  const payload = {
+    percent,
+    receivedBytes: progress.receivedBytes,
+    totalBytes: progress.totalBytes,
+  };
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send("paseo:event:app-update-progress", payload);
+    }
+  }
+}
+
 export function createDaemonCommandHandlers(): Record<string, DesktopCommandHandler> {
   return {
     ...createDesktopSettingsCommandHandlers({ settingsStore: getDesktopSettingsStore() }),
@@ -421,16 +449,14 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
           : "";
       if (sessionId) closeLocalTransportSession(sessionId);
     },
-    check_app_update: async () =>
-      getAppUpdateService().checkForAppUpdate({
-        currentVersion: resolveDesktopAppVersion(),
-      }),
+    check_app_update: async () => checkForAppUpdateNow(),
     install_app_update: async () =>
       getAppUpdateService().installAppUpdate({
         currentVersion: resolveDesktopAppVersion(),
         stopDaemon: async () => {
           await stopDesktopDaemon("app_update");
         },
+        onProgress: broadcastAppUpdateProgress,
       }),
     get_local_daemon_version: () => getLocalDaemonVersion(),
     get_local_changelog: () => getAppUpdateService().getChangelog(),

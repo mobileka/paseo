@@ -9,6 +9,7 @@ import {
 import {
   createGithubInstallIo,
   stageGithubRelease,
+  type GithubDownloadProgress,
   type GithubInstallIo,
   type GithubStagedBuild,
 } from "./github-install.js";
@@ -27,9 +28,16 @@ export interface GithubUpdateDiagnostics {
   hasEtag: boolean;
 }
 
+export interface GithubInstallOptions {
+  onProgress?: (progress: GithubDownloadProgress) => void;
+}
+
 export interface GithubUpdateSource {
   fetchCandidate: () => Promise<GithubUpdateFetch>;
-  install: (candidate: GithubReleaseCandidate) => Promise<GithubStagedBuild>;
+  install: (
+    candidate: GithubReleaseCandidate,
+    options?: GithubInstallOptions,
+  ) => Promise<GithubStagedBuild>;
   getDiagnostics: () => GithubUpdateDiagnostics;
 }
 
@@ -114,8 +122,16 @@ export function createGithubUpdateSource({
     }
   }
 
-  async function install(candidate: GithubReleaseCandidate): Promise<GithubStagedBuild> {
-    return await stageGithubRelease({ buildsDir, candidate, io: installIo });
+  async function install(
+    candidate: GithubReleaseCandidate,
+    options?: GithubInstallOptions,
+  ): Promise<GithubStagedBuild> {
+    return await stageGithubRelease({
+      buildsDir,
+      candidate,
+      io: installIo,
+      onProgress: options?.onProgress,
+    });
   }
 
   return {
