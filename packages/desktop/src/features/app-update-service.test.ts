@@ -314,7 +314,7 @@ describe("createAppUpdateService", () => {
       await service.checkForAppUpdate({ currentVersion: "0.8.0" });
       const stopDaemon = vi.fn(async () => undefined);
       const result = await service.installAppUpdate({ currentVersion: "0.8.0", stopDaemon });
-      expect(result.installed).toBe(true);
+      expect(result.status).toBe("installed");
       expect(result.version).toBe("0.9.0");
       expect(stopDaemon).toHaveBeenCalledTimes(1);
       expect(deps.repointLink).toHaveBeenCalledWith("/fake/builds/0.9.0_abcdef12/Paseo.app");
@@ -335,7 +335,7 @@ describe("createAppUpdateService", () => {
       await service.checkForAppUpdate({ currentVersion: "0.8.0" });
       const stopDaemon = vi.fn(async () => undefined);
       const result = await service.installAppUpdate({ currentVersion: "0.8.0", stopDaemon });
-      expect(result.installed).toBe(true);
+      expect(result.status).toBe("installed");
       expect(result.version).toBe("0.8.0");
       expect(github.install).toHaveBeenCalledWith(GITHUB_CANDIDATE);
       expect(deps.repointLink).toHaveBeenCalledWith("/fake/builds/0.8.0_bbbbbbb/Paseo.app");
@@ -344,6 +344,38 @@ describe("createAppUpdateService", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("reports up-to-date when the release disappears between check and install", async () => {
+    let fetchCalls = 0;
+    const github: GithubUpdateSource = {
+      fetchCandidate: async () => {
+        fetchCalls += 1;
+        if (fetchCalls === 1) {
+          return { candidate: GITHUB_CANDIDATE, errorMessage: null };
+        }
+        return { candidate: null, errorMessage: null };
+      },
+      install: vi.fn(async () => STAGED_GITHUB_BUILD),
+      getDiagnostics: () => ({
+        repo: "mobileka/paseo",
+        lastCheckedAt: null,
+        latestTag: null,
+        latestCommit: null,
+        lastError: null,
+        hasEtag: false,
+      }),
+    };
+    const deps = makeDeps({ github, state: null });
+    const service = createAppUpdateService(deps);
+    await service.checkForAppUpdate({ currentVersion: "0.8.0" });
+    const result = await service.installAppUpdate({
+      currentVersion: "0.8.0",
+      stopDaemon: vi.fn(async () => undefined),
+    });
+    expect(result.status).toBe("up-to-date");
+    expect(github.install).not.toHaveBeenCalled();
+    expect(deps.repointLink).not.toHaveBeenCalled();
   });
 
   it("reports a GitHub install failure without touching the link", async () => {
@@ -358,7 +390,7 @@ describe("createAppUpdateService", () => {
       currentVersion: "0.8.0",
       stopDaemon: vi.fn(async () => undefined),
     });
-    expect(result.installed).toBe(false);
+    expect(result.status).toBe("failed");
     expect(result.message).toBe("checksum mismatch");
     expect(deps.repointLink).not.toHaveBeenCalled();
   });
@@ -371,7 +403,7 @@ describe("createAppUpdateService", () => {
       currentVersion: "0.8.0",
       stopDaemon: vi.fn(async () => undefined),
     });
-    expect(result.installed).toBe(false);
+    expect(result.status).toBe("failed");
     expect(result.message).toBe("not a symlink");
     expect(deps.repointLink).not.toHaveBeenCalled();
   });
@@ -387,7 +419,7 @@ describe("createAppUpdateService", () => {
       currentVersion: "0.8.0",
       stopDaemon: vi.fn(async () => undefined),
     });
-    expect(result.installed).toBe(false);
+    expect(result.status).toBe("failed");
     expect(result.message).toBe("EACCES");
     expect(deps.relaunch).not.toHaveBeenCalled();
     expect(deps.quit).not.toHaveBeenCalled();

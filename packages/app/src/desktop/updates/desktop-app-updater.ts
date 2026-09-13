@@ -296,10 +296,25 @@ export function createDesktopAppUpdater(deps: DesktopAppUpdaterDeps): DesktopApp
     try {
       const result = await deps.port.installDesktopAppUpdate();
       const nextLastCheckedAt = deps.now();
+
+      if (result.status === "failed") {
+        commit({
+          ...state,
+          status: "error",
+          availableUpdate: null,
+          errorMessage: result.message || i18n.t("desktop.updates.installError"),
+          installMessage: null,
+          lastCheckedAt: nextLastCheckedAt,
+          isInstalling: false,
+        });
+        return result;
+      }
+
       commit({
         ...state,
-        status: result.installed ? "installed" : "up-to-date",
+        status: result.status === "installed" ? "installed" : "up-to-date",
         availableUpdate: null,
+        errorMessage: null,
         installMessage: result.message,
         lastCheckedAt: nextLastCheckedAt,
         isInstalling: false,

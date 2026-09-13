@@ -16,8 +16,10 @@ export interface DesktopAppUpdateCheckResult {
   errorMessage: string | null;
 }
 
+export type DesktopAppUpdateInstallStatus = "installed" | "up-to-date" | "failed";
+
 export interface DesktopAppUpdateInstallResult {
-  installed: boolean;
+  status: DesktopAppUpdateInstallStatus;
   version: string | null;
   message: string;
 }
@@ -136,16 +138,25 @@ export async function checkDesktopAppUpdate({
   };
 }
 
+function parseInstallStatus(value: unknown): DesktopAppUpdateInstallStatus {
+  if (value === "installed" || value === "up-to-date" || value === "failed") {
+    return value;
+  }
+  throw new Error("Unexpected response while installing desktop update.");
+}
+
 export async function installDesktopAppUpdate(): Promise<DesktopAppUpdateInstallResult> {
   const result = await invokeDesktopCommand<unknown>("install_app_update");
   if (!isRecord(result)) {
     throw new Error("Unexpected response while installing desktop update.");
   }
 
+  const status = parseInstallStatus(result.status);
+  const message = toStringOrNull(result.message);
   return {
-    installed: result.installed === true,
+    status,
     version: toStringOrNull(result.version),
-    message: toStringOrNull(result.message) ?? i18n.t("desktop.updates.status.installed"),
+    message: message ?? (status === "installed" ? i18n.t("desktop.updates.status.installed") : ""),
   };
 }
 

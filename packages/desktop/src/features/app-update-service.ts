@@ -1,4 +1,5 @@
 import { app } from "electron";
+import log from "electron-log/main";
 import path from "node:path";
 import { resolvePaseoHome } from "@getpaseo/server";
 import type { GithubReleaseCandidate } from "./github-releases.js";
@@ -35,8 +36,10 @@ export interface AppUpdateCheckResult {
   errorMessage: string | null;
 }
 
+export type AppUpdateInstallStatus = "installed" | "up-to-date" | "failed";
+
 export interface AppUpdateInstallResult {
-  installed: boolean;
+  status: AppUpdateInstallStatus;
   version: string | null;
   message: string;
 }
@@ -254,27 +257,22 @@ export function createAppUpdateService(deps: AppUpdateDeps) {
     stopDaemon: () => Promise<unknown>;
   }): Promise<AppUpdateInstallResult> {
     if (!enabled) {
-      return { installed: false, version: null, message: "Updates are disabled for this build." };
+      return { status: "failed", version: null, message: "Updates are disabled for this build." };
     }
 
-    let update = pendingUpdate;
+    // Resolve again instead of trusting the candidate from the last check: a
+    // release can disappear between the callout and the click, and installing
+    // a deleted asset would surface as a download error.
+    const { update, githubError } = await resolveUpdate();
     if (!update) {
-      const check = await checkForAppUpdate({ currentVersion: input.currentVersion });
-      if (!check.hasUpdate || check.errorMessage !== null) {
-        return {
-          installed: false,
-          version: null,
-          message: check.errorMessage ?? "No update is pending.",
-        };
+      if (githubError) {
+        return { status: "failed", version: null, message: githubError };
       }
-      update = pendingUpdate;
-    }
-    if (!update) {
-      return { installed: false, version: null, message: "No update is pending." };
+      return { status: "up-to-date", version: null, message: "No update is pending." };
     }
     if (!update.ready) {
       return {
-        installed: false,
+        status: "failed",
         version: null,
         message: update.errorMessage ?? "The update cannot be installed.",
       };
@@ -320,11 +318,11 @@ export function createAppUpdateService(deps: AppUpdateDeps) {
         }
       });
       pendingUpdate = null;
-      return { installed: true, version, message: "" };
+      return { status: "installed", version, message: "" };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       deps.logger.error("[app-updates] failed to apply update", { err: message });
-      return { installed: false, version: null, message };
+      return { status: "failed", version: null, message };
     }
   }
 
@@ -405,8 +403,8 @@ export function createDefaultAppUpdateService() {
     relaunch: (execPath) => app.relaunch({ execPath }),
     quit: () => app.quit(),
     logger: {
-      info: (message, details) => console.info(`[app-updates] ${message}`, details ?? ""),
-      error: (message, details) => console.error(`[app-updates] ${message}`, details ?? ""),
+      info: (message, details) => log.info(`[app-updates] ${message}`, details ?? ""),
+      error: (message, details) => log.error(`[app-updates] ${message}`, details ?? ""),
     },
   });
 }

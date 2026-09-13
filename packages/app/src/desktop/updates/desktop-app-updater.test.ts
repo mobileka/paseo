@@ -304,7 +304,7 @@ describe("desktop app updater — check", () => {
 describe("desktop app updater — install", () => {
   it("forwards install requests to the port", async () => {
     const { updater, port } = createUpdater();
-    port.nextInstallResult(buildFakeInstallResult({ installed: true }));
+    port.nextInstallResult(buildFakeInstallResult({ status: "installed" }));
 
     await updater.installUpdate();
 
@@ -314,7 +314,7 @@ describe("desktop app updater — install", () => {
   it("moves to 'installed' when the install reports installation succeeded", async () => {
     const { updater, port } = createUpdater();
     port.nextInstallResult(
-      buildFakeInstallResult({ installed: true, message: "Restart to finish" }),
+      buildFakeInstallResult({ status: "installed", message: "Restart to finish" }),
     );
 
     await updater.installUpdate();
@@ -328,11 +328,26 @@ describe("desktop app updater — install", () => {
 
   it("moves to 'up-to-date' when the install reports nothing to install", async () => {
     const { updater, port } = createUpdater();
-    port.nextInstallResult(buildFakeInstallResult({ installed: false }));
+    port.nextInstallResult(buildFakeInstallResult({ status: "up-to-date" }));
 
     await updater.installUpdate();
 
     expect(updater.getSnapshot().status).toBe("up-to-date");
+  });
+
+  it("moves to 'error' with the message when the install reports a failure", async () => {
+    const { updater, port } = createUpdater();
+    port.nextInstallResult(
+      buildFakeInstallResult({ status: "failed", message: "Release download failed (HTTP 404)." }),
+    );
+
+    await updater.installUpdate();
+
+    expect(updater.getSnapshot()).toMatchObject({
+      status: "error",
+      errorMessage: "Release download failed (HTTP 404).",
+      isInstalling: false,
+    });
   });
 
   it("reports the install error and moves to 'error' when the install throws", async () => {

@@ -51,7 +51,7 @@ function buildInstallResult(
   overrides: Partial<DesktopAppUpdateInstallResult> = {},
 ): DesktopAppUpdateInstallResult {
   return {
-    installed: false,
+    status: "up-to-date",
     version: null,
     message: "Update completed.",
     ...overrides,
