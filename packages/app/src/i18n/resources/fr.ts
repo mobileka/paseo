@@ -1080,7 +1080,6 @@ export const fr: TranslationResources = {
     title: "Nouveautés",
     installed: "Installée",
     showMore: "Afficher plus",
-    openWebsite: "Journal des modifications complet",
     error: {
       title: "Impossible de charger le journal des modifications",
       description: "Vérifiez votre connexion et réessayez.",
@@ -1399,13 +1398,6 @@ export const fr: TranslationResources = {
     settings: {
       loadFailed: "Impossible de charger les paramètres du bureau.",
       saveFailed: "Impossible d'enregistrer les paramètres du bureau.",
-    },
-    rosetta: {
-      title: "Téléchargez la versionApple Silicon",
-      runningIntel: "Vous exécutez la versionInteldePaseosousRosettasurApple Silicon.",
-      highCpu:
-        "Cela entraîne une utilisation élevée du processeur. Téléchargez la versionApple Siliconpour le réparer.",
-      download: "Télécharger",
     },
     permissions: {
       notifications: {

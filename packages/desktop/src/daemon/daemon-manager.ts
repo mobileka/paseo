@@ -433,6 +433,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
         },
       }),
     get_local_daemon_version: () => getLocalDaemonVersion(),
+    get_local_changelog: () => getLocalAppUpdateService().getChangelog(),
     install_cli: () => installCli(),
     get_cli_install_status: () => getCliInstallStatus(),
     read_legacy_skill_selection: () => readLegacySkillSelection(),

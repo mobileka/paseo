@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { parseChangelog, type ChangelogRelease } from "./parse-changelog";
+import { getLocalChangelog, type LocalChangelogEntry } from "@/desktop/updates/desktop-updates";
+import { parseChangelog, type ChangelogSection } from "./parse-changelog";
 
-const CHANGELOG_URL = "https://raw.githubusercontent.com/getpaseo/paseo/main/CHANGELOG.md";
+export interface ChangelogEntry {
+  version: string;
+  date: string;
+  isRunning: boolean;
+  localChanges: string | null;
+  sections: ChangelogSection[];
+}
 
 export type ChangelogState =
   | { status: "loading" }
-  | { status: "ready"; releases: ChangelogRelease[] }
+  | { status: "ready"; entries: ChangelogEntry[] }
   | { status: "error" };
-
-// Survives close/reopen so the second look paints without a spinner. The raw
-// text is kept alongside the releases so an unchanged revalidation can be
-// dropped: handing back an equal-but-new array would re-render every release.
-let cached: { markdown: string; releases: ChangelogRelease[] } | null = null;
 
 export interface Changelog {
   state: ChangelogState;
@@ -19,54 +21,53 @@ export interface Changelog {
 }
 
 /**
- * Reads the changelog from the repository the app was built from.
+ * Reads the changelog from the local staged builds.
  *
- * The daemon is not involved: the changelog describes the app, a phone reaching
- * a relay already has internet, and going through a host would make the notes
- * depend on which host happens to be connected.
- *
- * Every open refetches, because the whole point of opening it is a release that
- * shipped after this app started. A previous result stays on screen while that
- * happens, and survives a failed revalidation.
+ * The fork updates from `builds/` on this machine, so the notes and local
+ * changes baked into each `build.json` are the whole changelog. There is no
+ * network request: a stock bundle has no local update channel and reports an
+ * empty list.
  */
 export function useChangelog(enabled: boolean): Changelog {
-  const [state, setState] = useState<ChangelogState>(readCache);
+  const [state, setState] = useState<ChangelogState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!enabled) return;
 
-    const controller = new AbortController();
-    setState(readCache());
+    let cancelled = false;
+    setState({ status: "loading" });
 
     void (async () => {
       try {
-        const response = await fetch(CHANGELOG_URL, { signal: controller.signal });
-        if (!response.ok) throw new Error(`Changelog request failed: ${response.status}`);
-        const markdown = await response.text();
-        if (cached?.markdown === markdown) return;
-        const releases = parseChangelog(markdown);
-        if (releases.length === 0) throw new Error("Changelog has no releases");
-        cached = { markdown, releases };
-        setState({ status: "ready", releases });
+        const entries = await getLocalChangelog();
+        if (cancelled) return;
+        setState({ status: "ready", entries: entries.map(toChangelogEntry) });
       } catch {
-        if (controller.signal.aborted) return;
-        if (cached) return;
+        if (cancelled) return;
         setState({ status: "error" });
       }
     })();
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [enabled, attempt]);
 
   const reload = useCallback(() => {
-    cached = null;
     setAttempt((value) => value + 1);
   }, []);
 
   return { state, reload };
 }
 
-function readCache(): ChangelogState {
-  return cached ? { status: "ready", releases: cached.releases } : { status: "loading" };
+function toChangelogEntry(entry: LocalChangelogEntry): ChangelogEntry {
+  const release = entry.notes ? parseChangelog(entry.notes)[0] : undefined;
+  return {
+    version: release?.version ?? entry.version,
+    date: release?.date ?? (entry.builtAt ? entry.builtAt.slice(0, 10) : ""),
+    isRunning: entry.isRunning,
+    localChanges: entry.localChanges,
+    sections: release?.sections ?? [],
+  };
 }

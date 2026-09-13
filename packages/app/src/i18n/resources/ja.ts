@@ -1058,7 +1058,6 @@ export const ja: TranslationResources = {
     title: "新着情報",
     installed: "インストール済み",
     showMore: "もっと見る",
-    openWebsite: "変更履歴をすべて表示",
     error: {
       title: "変更履歴を読み込めません",
       description: "接続を確認してもう一度お試しください。",
@@ -1375,13 +1374,6 @@ export const ja: TranslationResources = {
     settings: {
       loadFailed: "デスクトップ設定を読み込めません。",
       saveFailed: "デスクトップ設定を保存できません。",
-    },
-    rosetta: {
-      title: "Apple Siliconビルドをダウンロード",
-      runningIntel: "Apple Silicon上のRosettaでPaseoのIntelビルドを実行しています。",
-      highCpu:
-        "これにより高いCPU使用率が発生します。修正するにはApple Siliconビルドをダウンロードしてください。",
-      download: "ダウンロード",
     },
     permissions: {
       notifications: {

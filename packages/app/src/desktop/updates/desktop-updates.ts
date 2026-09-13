@@ -9,6 +9,7 @@ export interface DesktopAppUpdateCheckResult {
   currentVersion: string | null;
   latestVersion: string | null;
   body: string | null;
+  localChanges: string | null;
   date: string | null;
   errorMessage: string | null;
 }
@@ -19,25 +20,21 @@ export interface DesktopAppUpdateInstallResult {
   message: string;
 }
 
-export interface DesktopRuntimeInfo {
-  appVersion: string | null;
-  runningUnderARM64Translation: boolean;
-}
-
 export type DesktopAppUpdateCheckIntent = "automatic" | "manual";
-
-export interface LocalDaemonUpdateResult {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-}
 
 export interface LocalDaemonVersionResult {
   version: string | null;
   error: string | null;
 }
 
-const RELEASE_DOWNLOAD_BASE_URL = "https://github.com/getpaseo/paseo/releases/download";
+export interface LocalChangelogEntry {
+  version: string;
+  commit: string;
+  builtAt: string;
+  notes: string | null;
+  localChanges: string | null;
+  isRunning: boolean;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -54,10 +51,6 @@ function toStringOrNull(value: unknown): string | null {
 
 function toStringOrEmpty(value: unknown): string {
   return typeof value === "string" ? value : "";
-}
-
-function toNumberOr(defaultValue: number, value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : defaultValue;
 }
 
 export function shouldShowDesktopUpdateSection(): boolean {
@@ -80,23 +73,39 @@ export async function getLocalDaemonVersion(): Promise<LocalDaemonVersionResult>
   return parseLocalDaemonVersionResult(result);
 }
 
-export function parseDesktopRuntimeInfo(raw: unknown): DesktopRuntimeInfo {
+export function parseLocalChangelogEntry(raw: unknown): LocalChangelogEntry | null {
   if (!isRecord(raw)) {
-    return {
-      appVersion: null,
-      runningUnderARM64Translation: false,
-    };
+    return null;
+  }
+
+  const version = toStringOrNull(raw.version);
+  if (!version) {
+    return null;
   }
 
   return {
-    appVersion: toStringOrNull(raw.appVersion),
-    runningUnderARM64Translation: raw.runningUnderARM64Translation === true,
+    version,
+    commit: toStringOrEmpty(raw.commit),
+    builtAt: toStringOrEmpty(raw.builtAt),
+    notes: toStringOrNull(raw.notes),
+    localChanges: toStringOrNull(raw.localChanges),
+    isRunning: raw.isRunning === true,
   };
 }
 
-export async function getDesktopRuntimeInfo(): Promise<DesktopRuntimeInfo> {
-  const result = await invokeDesktopCommand<unknown>("desktop_get_runtime_info");
-  return parseDesktopRuntimeInfo(result);
+export function parseLocalChangelog(raw: unknown): LocalChangelogEntry[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map(parseLocalChangelogEntry)
+    .filter((entry): entry is LocalChangelogEntry => entry !== null);
+}
+
+export async function getLocalChangelog(): Promise<LocalChangelogEntry[]> {
+  const result = await invokeDesktopCommand<unknown>("get_local_changelog");
+  return parseLocalChangelog(result);
 }
 
 export async function checkDesktopAppUpdate({
@@ -117,6 +126,7 @@ export async function checkDesktopAppUpdate({
     currentVersion: toStringOrNull(result.currentVersion),
     latestVersion: toStringOrNull(result.latestVersion),
     body: toStringOrNull(result.body),
+    localChanges: toStringOrNull(result.localChanges),
     date: toStringOrNull(result.date),
     errorMessage: toStringOrNull(result.errorMessage),
   };
@@ -132,19 +142,6 @@ export async function installDesktopAppUpdate(): Promise<DesktopAppUpdateInstall
     installed: result.installed === true,
     version: toStringOrNull(result.version),
     message: toStringOrNull(result.message) ?? i18n.t("desktop.updates.status.installed"),
-  };
-}
-
-export async function runLocalDaemonUpdate(): Promise<LocalDaemonUpdateResult> {
-  const result = await invokeDesktopCommand<unknown>("run_local_daemon_update");
-  if (!isRecord(result)) {
-    throw new Error("Unexpected response while updating local daemon.");
-  }
-
-  return {
-    exitCode: toNumberOr(1, result.exitCode),
-    stdout: toStringOrEmpty(result.stdout),
-    stderr: toStringOrEmpty(result.stderr),
   };
 }
 
@@ -178,20 +175,4 @@ export function formatVersionWithPrefix(version: string | null | undefined): str
   }
 
   return value.startsWith("v") ? value : `v${value}`;
-}
-
-export function buildMacAppleSiliconDownloadUrl(version: string | null | undefined): string | null {
-  const normalizedVersion = normalizeVersionForComparison(version);
-  if (!normalizedVersion) {
-    return null;
-  }
-
-  return `${RELEASE_DOWNLOAD_BASE_URL}/v${normalizedVersion}/Paseo-${normalizedVersion}-arm64.dmg`;
-}
-
-export function buildDaemonUpdateDiagnostics(result: LocalDaemonUpdateResult): string {
-  const stdout = result.stdout.length > 0 ? result.stdout : "(empty)";
-  const stderr = result.stderr.length > 0 ? result.stderr : "(empty)";
-
-  return [`Exit code: ${result.exitCode}`, "", "STDOUT:", stdout, "", "STDERR:", stderr].join("\n");
 }

@@ -237,6 +237,53 @@ export function readLocalUpdateDetails({
   return { notes, localChanges };
 }
 
+export interface LocalChangelogEntry {
+  version: string;
+  commit: string;
+  builtAt: string;
+  notes: string | null;
+  localChanges: string | null;
+  isRunning: boolean;
+}
+
+/**
+ * The staged builds, newest first, with the notes and local changes their
+ * build.json carries. This is what the in-app "What's new" sheet renders, so
+ * nothing about the changelog crosses the network.
+ */
+export function readLocalChangelog({
+  buildsDir,
+  runningCommit = null,
+  readFile = readFileSync,
+  exists = existsSync,
+}: {
+  buildsDir: string;
+  runningCommit?: string | null;
+  readFile?: ReadFileFn;
+  exists?: ExistsFn;
+}): LocalChangelogEntry[] {
+  const state = readLocalUpdateState({ buildsDir, readFile, exists });
+  if (!state) return [];
+  const running = typeof runningCommit === "string" ? runningCommit.trim().toLowerCase() : null;
+
+  return [state.latest, state.previous]
+    .filter((entry): entry is LocalUpdateEntry => entry !== null)
+    .map((entry) => {
+      const details = readLocalUpdateDetails({
+        folderPath: path.dirname(entry.appPath),
+        readFile,
+      });
+      return {
+        version: entry.version,
+        commit: entry.commit,
+        builtAt: entry.builtAt,
+        notes: details?.notes ?? null,
+        localChanges: details?.localChanges ?? null,
+        isRunning: running !== null && entry.commit === running,
+      };
+    });
+}
+
 export interface ApplicationsLinkStatus {
   isSymlink: boolean;
   target: string | null;

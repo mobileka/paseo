@@ -1054,7 +1054,6 @@ export const ko: TranslationResources = {
     title: "새로운 소식",
     installed: "설치됨",
     showMore: "더 보기",
-    openWebsite: "전체 변경 내역",
     error: {
       title: "변경 내역을 불러오지 못했습니다",
       description: "연결을 확인한 후 다시 시도하세요.",
@@ -1370,13 +1369,6 @@ export const ko: TranslationResources = {
     settings: {
       loadFailed: "데스크톱 설정을 불러올 수 없습니다.",
       saveFailed: "데스크톱 설정을 저장할 수 없습니다.",
-    },
-    rosetta: {
-      title: "Apple Silicon 빌드 다운로드",
-      runningIntel: "Apple Silicon에서 Rosetta로 Paseo의 Intel 빌드를 실행하고 있습니다.",
-      highCpu:
-        "이로 인해 CPU 사용량이 높아집니다. 이를 해결하려면 Apple Silicon 빌드를 다운로드하세요.",
-      download: "다운로드",
     },
     permissions: {
       notifications: {

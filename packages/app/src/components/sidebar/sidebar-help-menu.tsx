@@ -22,7 +22,10 @@ import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { useSessionStore } from "@/stores/session-store";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
 import type { HostProfile } from "@/types/host-connection";
-import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
+import {
+  formatVersionWithPrefix,
+  shouldShowDesktopUpdateSection,
+} from "@/desktop/updates/desktop-updates";
 import { resolveAppVersion } from "@/utils/app-version";
 import { openChangelog } from "@/changelog";
 import { openExternalUrl } from "@/utils/open-external-url";
@@ -84,6 +87,7 @@ export function SidebarHelpMenu() {
   const [open, setOpen] = useState(false);
   const version = formatVersionWithPrefix(resolveAppVersion());
   const hosts = useHosts();
+  const showChangelog = shouldShowDesktopUpdateSection();
 
   const openKeyboardShortcuts = useCallback(() => {
     setShortcutsDialogOpen(true);
@@ -132,13 +136,15 @@ export function SidebarHelpMenu() {
             {t("sidebar.help.shortcuts")}
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem
-          testID="sidebar-help-changelog"
-          leading={changelogLeadingIcon}
-          onSelect={openChangelog}
-        >
-          {t("sidebar.help.whatsNew")}
-        </DropdownMenuItem>
+        {showChangelog ? (
+          <DropdownMenuItem
+            testID="sidebar-help-changelog"
+            leading={changelogLeadingIcon}
+            onSelect={openChangelog}
+          >
+            {t("sidebar.help.whatsNew")}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           testID="sidebar-help-diagnostics"
           leading={diagnosticLeadingIcon}

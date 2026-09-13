@@ -1081,7 +1081,6 @@ export const es: TranslationResources = {
     title: "Novedades",
     installed: "Instalada",
     showMore: "Mostrar más",
-    openWebsite: "Registro de cambios completo",
     error: {
       title: "No se pudo cargar el registro de cambios",
       description: "Comprueba tu conexión e inténtalo de nuevo.",
@@ -1399,13 +1398,6 @@ export const es: TranslationResources = {
     settings: {
       loadFailed: "No se puede cargar la configuración del escritorio.",
       saveFailed: "No se puede guardar la configuración del escritorio.",
-    },
-    rosetta: {
-      title: "Descargue la compilaciónApple Silicon",
-      runningIntel: "Estás ejecutando la compilaciónInteldePaseoenRosettaenApple Silicon.",
-      highCpu:
-        "Esto provoca un uso elevado de la CPU. Descargue la compilaciónApple Siliconpara solucionarlo.",
-      download: "Descargar",
     },
     permissions: {
       notifications: {

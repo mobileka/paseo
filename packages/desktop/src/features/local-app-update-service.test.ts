@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createLocalAppUpdateService, type LocalAppUpdateDeps } from "./local-app-update-service";
-import type { ApplicationsLinkStatus, LocalUpdateState } from "./local-updates";
+import type {
+  ApplicationsLinkStatus,
+  LocalChangelogEntry,
+  LocalUpdateState,
+} from "./local-updates";
 
 const RUNNING_BUILD = { buildSha: "0000000000000000", builtAt: "2026-09-01T09:00:00Z" };
 
@@ -22,6 +26,17 @@ const OK_LINK: ApplicationsLinkStatus = {
   error: null,
 };
 
+const STAGED_CHANGELOG: LocalChangelogEntry[] = [
+  {
+    version: "0.9.0",
+    commit: "abcdef1234567890",
+    builtAt: "2026-09-12T10:00:00Z",
+    notes: "## [0.9.0]\n\n- feat: thing (abcdef1)",
+    localChanges: "- feat: thing (abcdef1)",
+    isRunning: false,
+  },
+];
+
 interface DepsOverrides {
   environment?: Partial<LocalAppUpdateDeps["environment"]>;
   state?: LocalUpdateState | null;
@@ -41,6 +56,7 @@ function makeDeps(overrides: DepsOverrides = {}): LocalAppUpdateDeps {
     io: {
       readState: () => (overrides.state === undefined ? STAGED_STATE : overrides.state),
       readDetails: () => ({ notes: "## [0.9.0]", localChanges: "- feat: thing (abcdef1)" }),
+      readChangelog: () => STAGED_CHANGELOG,
       getLinkStatus: () => overrides.link ?? OK_LINK,
     },
     repointLink: vi.fn(() => true),
@@ -76,7 +92,8 @@ describe("createLocalAppUpdateService", () => {
       readyToInstall: true,
       currentVersion: "0.8.0",
       latestVersion: "0.9.0",
-      body: "## [0.9.0]\n\n- feat: thing (abcdef1)",
+      body: "## [0.9.0]",
+      localChanges: "- feat: thing (abcdef1)",
       date: "2026-09-12T10:00:00Z",
       errorMessage: null,
     });
@@ -104,6 +121,18 @@ describe("createLocalAppUpdateService", () => {
       }),
     );
     expect(service.checkForAppUpdate({ currentVersion: "0.8.0" }).hasUpdate).toBe(false);
+  });
+
+  it("returns the local changelog when the channel is enabled", () => {
+    const service = createLocalAppUpdateService(makeDeps());
+    expect(service.getChangelog()).toEqual(STAGED_CHANGELOG);
+  });
+
+  it("returns no changelog for a stock bundle", () => {
+    const service = createLocalAppUpdateService(
+      makeDeps({ environment: { buildMetadata: { buildSha: null, builtAt: null } } }),
+    );
+    expect(service.getChangelog()).toEqual([]);
   });
 
   it("flags an unusable /Applications link instead of a clickable dead end", () => {
