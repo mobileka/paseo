@@ -291,7 +291,7 @@ export async function installDesktopRuntime(
             await new Promise<void>((resolve) => setTimeout(resolve, 3000));
           }
           return {
-            installed: true,
+            status: "installed",
             version: cfg.latestVersion ?? "1.2.3",
             message: "App update installed. Restart required.",
           };
