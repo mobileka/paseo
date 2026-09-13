@@ -39,6 +39,8 @@ function buildCheckResult(
     latestVersion: null,
     body: null,
     localChanges: null,
+    currentCommit: null,
+    targetCommit: null,
     date: null,
     errorMessage: null,
     ...overrides,

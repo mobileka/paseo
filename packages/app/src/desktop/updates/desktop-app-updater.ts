@@ -100,7 +100,7 @@ export function formatStatusText(input: {
   availableUpdate: DesktopAppUpdateCheckResult | null;
   installMessage: string | null;
   lastCheckedAt: number | null;
-  formatVersion: (version: string | null | undefined) => string;
+  formatVersion: (version: string | null | undefined, commit?: string | null) => string;
   formatLastCheckedAt: (timestamp: number) => string;
 }): string {
   const {
@@ -136,7 +136,7 @@ export function formatStatusText(input: {
           ? "desktop.updates.status.pendingWithVersionAndLastChecked"
           : "desktop.updates.status.pendingWithVersion",
         {
-          version: formatVersion(availableUpdate.latestVersion),
+          version: formatVersion(availableUpdate.latestVersion, availableUpdate.targetCommit),
           time: lastCheckedAt != null ? formatLastCheckedAt(lastCheckedAt) : undefined,
         },
       );
@@ -157,7 +157,7 @@ export function formatStatusText(input: {
           ? "desktop.updates.status.availableWithVersionAndLastChecked"
           : "desktop.updates.status.availableWithVersion",
         {
-          version: formatVersion(availableUpdate.latestVersion),
+          version: formatVersion(availableUpdate.latestVersion, availableUpdate.targetCommit),
           time: lastCheckedAt != null ? formatLastCheckedAt(lastCheckedAt) : undefined,
         },
       );

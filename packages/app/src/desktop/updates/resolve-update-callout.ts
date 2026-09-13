@@ -1,4 +1,5 @@
 import type { DesktopAppUpdateStatus } from "@/desktop/updates/use-desktop-app-updater";
+import { formatBuildLabel, normalizeBuildCommit } from "@/desktop/updates/desktop-updates";
 import { i18n } from "@/i18n/i18next";
 
 export type UpdateCalloutBody =
@@ -31,13 +32,8 @@ export interface ResolveUpdateCalloutInput {
   isDesktopApp: boolean;
   status: DesktopAppUpdateStatus;
   isInstalling: boolean;
-  availableUpdate: { latestVersion?: string | null } | null;
+  availableUpdate: { latestVersion?: string | null; targetCommit?: string | null } | null;
   errorMessage: string | null;
-}
-
-function formatVersionLabel(latestVersion: string | null | undefined): string | null {
-  if (!latestVersion) return null;
-  return `v${latestVersion.replace(/^v/i, "")}`;
 }
 
 export function resolveUpdateCalloutDescriptor(
@@ -53,7 +49,12 @@ export function resolveUpdateCalloutDescriptor(
   const isAvailable = !isInstalling && !isError;
 
   const latestVersion = input.availableUpdate?.latestVersion ?? null;
-  const dismissalKey = `desktop-update:${input.status}:${latestVersion ?? "unknown"}`;
+  const targetCommit = normalizeBuildCommit(input.availableUpdate?.targetCommit);
+  // The commit is part of the key so a new local build re-surfaces the callout
+  // even though the fork keeps the same version number.
+  const dismissalKey = ["desktop-update", input.status, latestVersion ?? "unknown", targetCommit]
+    .filter((part): part is string => part !== null)
+    .join(":");
 
   let title: string;
   let body: UpdateCalloutBody;
@@ -68,7 +69,9 @@ export function resolveUpdateCalloutDescriptor(
     };
   } else {
     title = i18n.t("desktop.updates.callout.availableTitle");
-    body = { kind: "available", versionLabel: formatVersionLabel(latestVersion) };
+    const versionLabel =
+      latestVersion || targetCommit ? formatBuildLabel(latestVersion, targetCommit) : null;
+    body = { kind: "available", versionLabel };
   }
 
   const actions: UpdateCalloutActionDescriptor[] = [

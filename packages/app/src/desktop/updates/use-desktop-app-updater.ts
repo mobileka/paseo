@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import {
   checkDesktopAppUpdate,
-  formatVersionWithPrefix,
+  formatBuildLabel,
   installDesktopAppUpdate,
   shouldShowDesktopUpdateSection,
   type DesktopAppUpdateCheckResult,
@@ -136,7 +136,7 @@ export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
       availableUpdate: snapshot.availableUpdate,
       installMessage: snapshot.installMessage,
       lastCheckedAt: snapshot.lastCheckedAt,
-      formatVersion: formatVersionWithPrefix,
+      formatVersion: formatBuildLabel,
       formatLastCheckedAt: (timestamp) => formatMessageTimestamp(new Date(timestamp)),
     }),
     availableUpdate: snapshot.availableUpdate,

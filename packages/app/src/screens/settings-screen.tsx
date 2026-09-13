@@ -89,7 +89,7 @@ import { BrowserDataSection } from "@/desktop/browser/settings/browser-data-sect
 import { IntegrationsSection } from "@/desktop/components/integrations-section";
 import { isElectronRuntime } from "@/desktop/host";
 import { useDesktopAppUpdater } from "@/desktop/updates/use-desktop-app-updater";
-import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
+import { formatBuildLabel, formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { resolveAppVersion } from "@/utils/app-version";
 import { openChangelog } from "@/changelog";
 import { useAppDiagnosticStore } from "@/diagnostics/store";
@@ -733,11 +733,12 @@ function getUpdateButtonLabel(
   t: TFunction,
   isInstalling: boolean,
   latestVersion: string | null | undefined,
+  targetCommit: string | null | undefined,
 ): string {
   if (isInstalling) return t("settings.about.updates.installing");
-  if (latestVersion) {
+  if (latestVersion || targetCommit) {
     return t("settings.about.updates.updateTo", {
-      version: formatVersionWithPrefix(latestVersion),
+      version: formatBuildLabel(latestVersion, targetCommit),
     });
   }
   return t("settings.about.updates.update");
@@ -802,6 +803,7 @@ function DesktopAppUpdateRow() {
 
   const isUpdateReady = availableUpdate?.readyToInstall === true;
   const readyUpdateVersion = isUpdateReady ? availableUpdate?.latestVersion : null;
+  const readyUpdateCommit = isUpdateReady ? availableUpdate?.targetCommit : null;
 
   if (!isDesktopApp) {
     return null;
@@ -815,7 +817,7 @@ function DesktopAppUpdateRow() {
         {readyUpdateVersion ? (
           <Text style={settingsStyles.rowHint}>
             {t("settings.about.updates.readyToInstall", {
-              version: formatVersionWithPrefix(readyUpdateVersion),
+              version: formatBuildLabel(readyUpdateVersion, readyUpdateCommit),
             })}
           </Text>
         ) : null}
@@ -836,7 +838,7 @@ function DesktopAppUpdateRow() {
           onPress={handleInstallUpdate}
           disabled={isChecking || isInstalling || !isUpdateReady}
         >
-          {getUpdateButtonLabel(t, isInstalling, readyUpdateVersion)}
+          {getUpdateButtonLabel(t, isInstalling, readyUpdateVersion, readyUpdateCommit)}
         </Button>
       </View>
     </View>
