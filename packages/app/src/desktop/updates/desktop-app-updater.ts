@@ -16,6 +16,7 @@ export type DesktopAppUpdateStatus =
   | "error";
 
 export const PENDING_RECHECK_MS = 10_000;
+export const AUTO_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
 export interface DesktopAppUpdaterSnapshot {
   status: DesktopAppUpdateStatus;
