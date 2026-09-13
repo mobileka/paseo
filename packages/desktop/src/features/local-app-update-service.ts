@@ -26,6 +26,8 @@ export interface AppUpdateCheckResult {
   latestVersion: string | null;
   body: string | null;
   localChanges: string | null;
+  currentCommit: string | null;
+  targetCommit: string | null;
   date: string | null;
   errorMessage: string | null;
 }
@@ -71,6 +73,11 @@ export interface LocalAppUpdateDeps {
 
 const MAC_EXEC_PATH = path.join(MAC_APP_LINK, "Contents", "MacOS", "Paseo");
 
+function shortCommit(commit: string | null): string | null {
+  const value = commit?.trim();
+  return value ? value.slice(0, 7).toLowerCase() : null;
+}
+
 export function createLocalAppUpdateService(deps: LocalAppUpdateDeps) {
   const { environment } = deps;
   const enabled =
@@ -96,6 +103,8 @@ export function createLocalAppUpdateService(deps: LocalAppUpdateDeps) {
       latestVersion: null,
       body: null,
       localChanges: null,
+      currentCommit: shortCommit(runningCommit),
+      targetCommit: null,
       date: null,
       errorMessage: null,
     };
@@ -117,6 +126,8 @@ export function createLocalAppUpdateService(deps: LocalAppUpdateDeps) {
       latestVersion: update.version || null,
       body: details?.notes ?? null,
       localChanges: details?.localChanges ?? null,
+      currentCommit: shortCommit(runningCommit),
+      targetCommit: shortCommit(update.commit),
       date: update.builtAt || null,
       errorMessage: linkStatus.error,
     };

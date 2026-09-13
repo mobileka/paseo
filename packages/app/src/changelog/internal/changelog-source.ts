@@ -4,6 +4,7 @@ import { parseChangelog, type ChangelogSection } from "./parse-changelog";
 
 export interface ChangelogEntry {
   version: string;
+  commit: string;
   date: string;
   isRunning: boolean;
   localChanges: string | null;
@@ -65,6 +66,7 @@ function toChangelogEntry(entry: LocalChangelogEntry): ChangelogEntry {
   const release = entry.notes ? parseChangelog(entry.notes)[0] : undefined;
   return {
     version: release?.version ?? entry.version,
+    commit: entry.commit,
     date: release?.date ?? (entry.builtAt ? entry.builtAt.slice(0, 10) : ""),
     isRunning: entry.isRunning,
     localChanges: entry.localChanges,

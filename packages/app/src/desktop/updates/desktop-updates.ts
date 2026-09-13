@@ -10,6 +10,8 @@ export interface DesktopAppUpdateCheckResult {
   latestVersion: string | null;
   body: string | null;
   localChanges: string | null;
+  currentCommit: string | null;
+  targetCommit: string | null;
   date: string | null;
   errorMessage: string | null;
 }
@@ -127,6 +129,8 @@ export async function checkDesktopAppUpdate({
     latestVersion: toStringOrNull(result.latestVersion),
     body: toStringOrNull(result.body),
     localChanges: toStringOrNull(result.localChanges),
+    currentCommit: toStringOrNull(result.currentCommit),
+    targetCommit: toStringOrNull(result.targetCommit),
     date: toStringOrNull(result.date),
     errorMessage: toStringOrNull(result.errorMessage),
   };
@@ -175,4 +179,28 @@ export function formatVersionWithPrefix(version: string | null | undefined): str
   }
 
   return value.startsWith("v") ? value : `v${value}`;
+}
+
+export function normalizeBuildCommit(commit: string | null | undefined): string | null {
+  const value = commit?.trim();
+  return value ? value.slice(0, 7).toLowerCase() : null;
+}
+
+/**
+ * Local fork builds keep the upstream version, so the short commit is the only
+ * thing that tells two builds apart. "v0.8.0 · 4eea92a".
+ */
+export function formatBuildLabel(
+  version: string | null | undefined,
+  commit: string | null | undefined,
+): string {
+  const versionLabel = formatVersionWithPrefix(version);
+  const commitLabel = normalizeBuildCommit(commit);
+  if (!commitLabel) {
+    return versionLabel;
+  }
+  if (versionLabel === "\u2014") {
+    return commitLabel;
+  }
+  return `${versionLabel} \u00b7 ${commitLabel}`;
 }

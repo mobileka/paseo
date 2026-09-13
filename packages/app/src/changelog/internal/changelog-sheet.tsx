@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
+import { normalizeBuildCommit } from "@/desktop/updates/desktop-updates";
 import { useChangelog, type ChangelogEntry, type ChangelogState } from "./changelog-source";
 import { useRevealedReleases } from "./use-revealed-releases";
 import { formatChangelogDate } from "./parse-changelog";
@@ -143,11 +144,13 @@ interface ReleaseViewProps {
 const ReleaseView = memo(function ReleaseView({ entry }: ReleaseViewProps) {
   const { t } = useTranslation();
   const date = formatChangelogDate(entry.date);
+  const commit = normalizeBuildCommit(entry.commit);
 
   return (
     <View style={styles.release} testID={`changelog-release-${entry.version}`}>
       <View style={styles.releaseHeading}>
         <Text style={styles.version}>{entry.version}</Text>
+        {commit ? <Text style={styles.commit}>{commit}</Text> : null}
         {entry.isRunning ? <StatusBadge label={t("changelog.installed")} /> : null}
         <View style={styles.headingSpacer} />
         {date ? <Text style={styles.date}>{date}</Text> : null}
@@ -207,6 +210,11 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.medium,
     color: theme.colors.foreground,
+  },
+  commit: {
+    fontSize: theme.fontSize.sm,
+    fontFamily: theme.fontFamily.mono,
+    color: theme.colors.foregroundMuted,
   },
   date: {
     fontSize: theme.fontSize.sm,

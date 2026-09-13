@@ -37,6 +37,18 @@ describe("desktop-updates helpers", () => {
     expect(formatVersionWithPrefix(null)).toBe("\u2014");
   });
 
+  it("appends the short commit to the build label", async () => {
+    const { formatBuildLabel, normalizeBuildCommit } = await loadModuleForPlatform("web");
+
+    expect(formatBuildLabel("0.8.0", "4eea92a274448fea1fd8b29e03ef560fd25dbf07")).toBe(
+      "v0.8.0 \u00b7 4eea92a",
+    );
+    expect(formatBuildLabel("0.8.0", null)).toBe("v0.8.0");
+    expect(formatBuildLabel(null, "4eea92a")).toBe("4eea92a");
+    expect(normalizeBuildCommit(" 4EEA92A27444 ")).toBe("4eea92a");
+    expect(normalizeBuildCommit("")).toBeNull();
+  });
+
   it("parses valid local daemon version result", async () => {
     const { parseLocalDaemonVersionResult } = await loadModuleForPlatform("web");
 

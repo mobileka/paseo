@@ -94,6 +94,8 @@ describe("createLocalAppUpdateService", () => {
       latestVersion: "0.9.0",
       body: "## [0.9.0]",
       localChanges: "- feat: thing (abcdef1)",
+      currentCommit: "0000000",
+      targetCommit: "abcdef1",
       date: "2026-09-12T10:00:00Z",
       errorMessage: null,
     });

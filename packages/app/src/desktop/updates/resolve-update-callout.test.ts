@@ -52,6 +52,14 @@ describe("resolveUpdateCalloutDescriptor", () => {
     expect(descriptor?.body).toEqual({ kind: "available", versionLabel: "v2.0.0" });
   });
 
+  it("labels the target commit so fork builds are distinguishable", () => {
+    const descriptor = resolveUpdateCalloutDescriptor(
+      input({ availableUpdate: { latestVersion: "2.0.0", targetCommit: "ABCDEF1234567890" } }),
+    );
+    expect(descriptor?.body).toEqual({ kind: "available", versionLabel: "v2.0.0 \u00b7 abcdef1" });
+    expect(descriptor?.dismissalKey).toBe("desktop-update:available:2.0.0:abcdef1");
+  });
+
   it("omits the version label when no latest version is known", () => {
     const descriptor = resolveUpdateCalloutDescriptor(
       input({ availableUpdate: { latestVersion: null } }),
