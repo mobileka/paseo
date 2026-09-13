@@ -125,20 +125,24 @@ jobs:
             release_id="$(find_release_id || true)"
             [ -n "$release_id" ] && break
             echo "Creating draft release $TAG (attempt $attempt)"
-            created_id="$(gh api --method POST "repos/$REPO/releases" \
+            created_id=""
+            # -F (not -f) so draft is sent as a boolean; the API rejects the
+            # string "true" with HTTP 422. gh's stderr stays visible, and the
+            # captured id must be numeric before it is trusted: an error body
+            # is printed to stdout and must never become the release id.
+            if created_id="$(gh api --method POST "repos/$REPO/releases" \
                 -f tag_name="$TAG" \
                 -f name="$TITLE" \
-                -f draft=true \
+                -F draft=true \
                 -f target_commitish="$SHA" \
                 -F body=@"release-assets/release-notes.md" \
-                --jq '.id' 2>/dev/null || true)"
-            if [ -n "$created_id" ]; then
+                --jq '.id')" && [[ "$created_id" =~ ^[0-9]+$ ]]; then
               release_id="$created_id"
               break
             fi
-            # A 5xx can still mean the release was created; give the release
-            # list time to see it before trying to create again.
-            echo "::warning::draft create attempt $attempt failed; re-checking"
+            # A failed create can still have created the release (5xx after
+            # success); give the release list time to see it before retrying.
+            echo "::warning::draft create attempt $attempt failed (payload: ${created_id:-<none>}); re-checking"
             sleep 15
           done
           [ -n "$release_id" ] || { echo "::error::could not create a release for $TAG"; exit 1; }
