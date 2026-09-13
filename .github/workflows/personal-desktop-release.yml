@@ -103,22 +103,79 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.meta.outputs.tag }}
+          SHA: ${{ steps.meta.outputs.sha }}
         run: |
           set -euo pipefail
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --clobber \
-              release-assets/Paseo-arm64.zip \
-              release-assets/build.json
-            gh release edit "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --notes-file release-assets/release-notes.md
-          else
-            gh release create "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "Paseo personal ${{ steps.meta.outputs.short_sha }}" \
-              --notes-file release-assets/release-notes.md \
-              release-assets/Paseo-arm64.zip \
-              release-assets/build.json
-          fi
+          REPO="$GITHUB_REPOSITORY"
+          TITLE="Paseo personal ${{ steps.meta.outputs.short_sha }}"
+
+          # GitHub intermittently returns 5xx on release writes even though the
+          # write succeeded, and a release becomes invisible by tag while it is
+          # a draft. Every step therefore re-checks server state instead of
+          # trusting a response: create is re-resolved from the draft-inclusive
+          # release list, and assets are reconciled by name and size.
+          find_release_id() {
+            gh api "repos/$REPO/releases?per_page=100" \
+              --jq ".[] | select(.tag_name == \"$TAG\") | .id" 2>/dev/null | head -n 1
+          }
+
+          release_id=""
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            release_id="$(find_release_id || true)"
+            [ -n "$release_id" ] && break
+            echo "Creating draft release $TAG (attempt $attempt)"
+            if ! gh api --method POST "repos/$REPO/releases" \
+                -f tag_name="$TAG" \
+                -f name="$TITLE" \
+                -F draft=true \
+                -f target_commitish="$SHA" \
+                -F body=@"release-assets/release-notes.md" > /dev/null; then
+              echo "::warning::draft create attempt $attempt failed; re-checking"
+              sleep 5
+            fi
+          done
+          [ -n "$release_id" ] || { echo "::error::could not create a release for $TAG"; exit 1; }
+
+          for asset in Paseo-arm64.zip build.json; do
+            local_size="$(stat -f%z "release-assets/$asset")"
+            uploaded="false"
+            for attempt in 1 2 3 4 5; do
+              existing="$(gh api "repos/$REPO/releases/$release_id/assets?per_page=100" \
+                --jq ".[] | select(.name == \"$asset\") | \"\(.id) \(.size)\"" 2>/dev/null | head -n 1 || true)"
+              if [ -n "$existing" ]; then
+                existing_id="${existing%% *}"
+                existing_size="${existing##* }"
+                if [ "$existing_size" = "$local_size" ]; then
+                  echo "$asset already uploaded (${local_size} bytes)"
+                  uploaded="true"
+                  break
+                fi
+                gh api --method DELETE "repos/$REPO/releases/assets/$existing_id" > /dev/null 2>&1 || true
+              fi
+              if gh api --method POST \
+                  "https://uploads.github.com/repos/$REPO/releases/$release_id/assets?name=$asset" \
+                  -H "Content-Type: application/octet-stream" \
+                  --input "release-assets/$asset" > /dev/null; then
+                echo "Uploaded $asset (${local_size} bytes)"
+                uploaded="true"
+                break
+              fi
+              echo "::warning::upload $asset attempt $attempt failed; retrying in 5s"
+              sleep 5
+            done
+            if [ "$uploaded" != "true" ]; then
+              echo "::error::failed to upload $asset"
+              exit 1
+            fi
+          done
+
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if gh api --method PATCH "repos/$REPO/releases/$release_id" -F draft=false > /dev/null; then
+              echo "Published $TAG"
+              exit 0
+            fi
+            echo "::warning::publish attempt $attempt failed; retrying in 5s"
+            sleep 5
+          done
+          echo "::error::failed to publish $TAG"
+          exit 1
