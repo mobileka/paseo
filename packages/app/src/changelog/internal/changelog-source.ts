@@ -22,12 +22,10 @@ export interface Changelog {
 }
 
 /**
- * Reads the changelog from the local staged builds.
- *
- * The fork updates from `builds/` on this machine, so the notes and local
- * changes baked into each `build.json` are the whole changelog. There is no
- * network request: a stock bundle has no local update channel and reports an
- * empty list.
+ * Reads the changelog from the staged builds plus, when one is pending, the
+ * notes of the GitHub release the last update check resolved. The main process
+ * already fetched those; this call makes no network request. A stock bundle has
+ * no update channel and reports an empty list.
  */
 export function useChangelog(enabled: boolean): Changelog {
   const [state, setState] = useState<ChangelogState>({ status: "loading" });

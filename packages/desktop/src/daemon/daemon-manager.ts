@@ -20,9 +20,9 @@ import {
   writeAttachmentBytes,
 } from "../features/attachments.js";
 import {
-  createDefaultLocalAppUpdateService,
+  createDefaultAppUpdateService,
   resolveDefaultLocalBuildsDir,
-} from "../features/local-app-update-service.js";
+} from "../features/app-update-service.js";
 import { readLocalUpdateStateSignature } from "../features/local-updates.js";
 import {
   getBundledCliShimPath,
@@ -367,11 +367,11 @@ async function getLocalDaemonVersion(): Promise<{ version: string | null; error:
 // IPC registration
 // ---------------------------------------------------------------------------
 
-let localAppUpdateService: ReturnType<typeof createDefaultLocalAppUpdateService> | null = null;
+let appUpdateService: ReturnType<typeof createDefaultAppUpdateService> | null = null;
 
-function getLocalAppUpdateService() {
-  localAppUpdateService ??= createDefaultLocalAppUpdateService();
-  return localAppUpdateService;
+function getAppUpdateService() {
+  appUpdateService ??= createDefaultAppUpdateService();
+  return appUpdateService;
 }
 
 export function createDaemonCommandHandlers(): Record<string, DesktopCommandHandler> {
@@ -399,7 +399,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
         launcherReason: process.env.PASEO_DESKTOP_SANDBOX_REASON,
       }),
     desktop_app_logs: () => getDesktopAppLogs(),
-    desktop_update_diagnostics: () => getLocalAppUpdateService().getUpdateDiagnostics(),
+    desktop_update_diagnostics: () => getAppUpdateService().getUpdateDiagnostics(),
     desktop_get_system_idle_time: () => powerMonitor.getSystemIdleTime() * 1000,
     cli_daemon_status: () => getCliDaemonStatus(),
     write_attachment_base64: (args) => writeAttachmentBase64(args ?? {}),
@@ -422,18 +422,18 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
       if (sessionId) closeLocalTransportSession(sessionId);
     },
     check_app_update: async () =>
-      getLocalAppUpdateService().checkForAppUpdate({
+      getAppUpdateService().checkForAppUpdate({
         currentVersion: resolveDesktopAppVersion(),
       }),
     install_app_update: async () =>
-      getLocalAppUpdateService().installAppUpdate({
+      getAppUpdateService().installAppUpdate({
         currentVersion: resolveDesktopAppVersion(),
         stopDaemon: async () => {
           await stopDesktopDaemon("app_update");
         },
       }),
     get_local_daemon_version: () => getLocalDaemonVersion(),
-    get_local_changelog: () => getLocalAppUpdateService().getChangelog(),
+    get_local_changelog: () => getAppUpdateService().getChangelog(),
     install_cli: () => installCli(),
     get_cli_install_status: () => getCliInstallStatus(),
     read_legacy_skill_selection: () => readLegacySkillSelection(),
@@ -464,7 +464,7 @@ export function registerDaemonManager(): void {
 const LOCAL_UPDATE_POLL_INTERVAL_MS = 5_000;
 
 function startLocalUpdateStatePolling(): void {
-  if (!getLocalAppUpdateService().isEnabled()) {
+  if (!getAppUpdateService().isEnabled()) {
     return;
   }
 

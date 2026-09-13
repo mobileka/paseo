@@ -127,6 +127,21 @@ function formatDesktopUpdateSections(diagnostics: DesktopUpdateDiagnostics): str
     ]),
     formatUpdateFileSection("Update state file", diagnostics.stateFile),
   ];
+
+  if (diagnostics.github) {
+    const github = diagnostics.github;
+    sections.push(
+      formatDiagnosticSection("GitHub updates", [
+        { label: "Repository", value: github.repo || "unknown" },
+        { label: "Last checked", value: github.lastCheckedAt ?? "never" },
+        { label: "Latest release", value: github.latestTag ?? "none" },
+        { label: "Latest commit", value: github.latestCommit ?? "none" },
+        { label: "Last error", value: github.lastError ?? "none" },
+        { label: "ETag cached", value: github.hasEtag ? "yes" : "no" },
+      ]),
+    );
+  }
+
   return sections;
 }
 

@@ -1,0 +1,124 @@
+name: Personal Desktop Release
+
+on:
+  push:
+    branches: [personal]
+  workflow_dispatch:
+
+concurrency:
+  group: personal-desktop-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Resolve build metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          short_sha="${sha:0:7}"
+          built_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          stamp="$(date -u '+%Y%m%d-%H%M')"
+          {
+            echo "sha=$sha"
+            echo "short_sha=$short_sha"
+            echo "built_at=$built_at"
+            echo "tag=personal-${stamp}-${short_sha}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build web app
+        run: |
+          set -euo pipefail
+          npm run build:app-deps:clean
+          cd packages/app
+          PASEO_WEB_PLATFORM=electron npx expo export --platform web
+
+      - name: Build server stack and desktop main
+        run: |
+          set -euo pipefail
+          npm run build:server:clean
+          npm run build:main --workspace=@getpaseo/desktop
+
+      - name: Package macOS arm64 app
+        working-directory: packages/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          set -euo pipefail
+          npx electron-builder --dir --mac --arm64 \
+            --config electron-builder.yml \
+            --config.mac.identity=null \
+            --config.mac.notarize=false \
+            --config.extraMetadata.buildSha="${{ steps.meta.outputs.sha }}" \
+            --config.extraMetadata.builtAt="${{ steps.meta.outputs.built_at }}"
+
+      - name: Ad-hoc sign and smoke test
+        working-directory: packages/desktop
+        run: |
+          set -euo pipefail
+          app="$(ls -d release/mac-arm64/Paseo.app)"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --strict "$app"
+          ELECTRON_RUN_AS_NODE=1 "$app/Contents/MacOS/Paseo" -e 'process.exit(0)'
+
+      - name: Prepare release assets
+        working-directory: packages/desktop
+        run: |
+          set -euo pipefail
+          app="$(ls -d release/mac-arm64/Paseo.app)"
+          mkdir -p release-assets
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$app" release-assets/Paseo-arm64.zip
+          version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
+          previous_tag="$(git tag --list 'personal-*' --sort=-creatordate | head -1 || true)"
+          node ../../scripts/personal-desktop-manifest.mjs \
+            --version "$version" \
+            --commit "${{ steps.meta.outputs.sha }}" \
+            --built-at "${{ steps.meta.outputs.built_at }}" \
+            --zip release-assets/Paseo-arm64.zip \
+            --repo "$GITHUB_WORKSPACE" \
+            --previous-tag "$previous_tag" \
+            --out release-assets/build.json \
+            --notes-out release-assets/release-notes.md
+
+      - name: Publish release
+        working-directory: packages/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber \
+              release-assets/Paseo-arm64.zip \
+              release-assets/build.json
+            gh release edit "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file release-assets/release-notes.md
+          else
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Paseo personal ${{ steps.meta.outputs.short_sha }}" \
+              --notes-file release-assets/release-notes.md \
+              release-assets/Paseo-arm64.zip \
+              release-assets/build.json
+          fi

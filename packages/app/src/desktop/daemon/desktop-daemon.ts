@@ -44,6 +44,15 @@ export interface DesktopUpdateDiagnosticFile {
   error: string | null;
 }
 
+export interface DesktopUpdateGithubDiagnostics {
+  repo: string;
+  lastCheckedAt: string | null;
+  latestTag: string | null;
+  latestCommit: string | null;
+  lastError: string | null;
+  hasEtag: boolean;
+}
+
 export interface DesktopUpdateDiagnostics {
   platform: string;
   home: string;
@@ -57,6 +66,7 @@ export interface DesktopUpdateDiagnostics {
     target: string | null;
     error: string | null;
   };
+  github: DesktopUpdateGithubDiagnostics | null;
 }
 
 export interface LocalTransportTarget {
@@ -162,6 +172,18 @@ function parseDesktopUpdateDiagnosticFile(raw: unknown): DesktopUpdateDiagnostic
   };
 }
 
+function parseDesktopUpdateGithubDiagnostics(raw: unknown): DesktopUpdateGithubDiagnostics | null {
+  if (!isRecord(raw)) return null;
+  return {
+    repo: toStringOrNull(raw.repo) ?? "",
+    lastCheckedAt: toStringOrNull(raw.lastCheckedAt),
+    latestTag: toStringOrNull(raw.latestTag),
+    latestCommit: toStringOrNull(raw.latestCommit),
+    lastError: toStringOrNull(raw.lastError),
+    hasEtag: raw.hasEtag === true,
+  };
+}
+
 function parseDesktopUpdateDiagnostics(raw: unknown): DesktopUpdateDiagnostics {
   if (!isRecord(raw)) {
     throw new Error("Unexpected desktop update diagnostics response.");
@@ -180,6 +202,7 @@ function parseDesktopUpdateDiagnostics(raw: unknown): DesktopUpdateDiagnostics {
       target: appLink ? toStringOrNull(appLink.target) : null,
       error: appLink ? toStringOrNull(appLink.error) : null,
     },
+    github: parseDesktopUpdateGithubDiagnostics(raw.github),
   };
 }
 

@@ -78,6 +78,13 @@ function buildApplicationMenuTemplate(
             label: app.name,
             submenu: [
               { role: "about" as const },
+              {
+                label: "Check for Updates…",
+                click: () => {
+                  const win = BrowserWindow.getFocusedWindow();
+                  win?.webContents.send("paseo:event:check-for-updates", { intent: "manual" });
+                },
+              },
               { type: "separator" as const },
               { role: "services" as const },
               { type: "separator" as const },

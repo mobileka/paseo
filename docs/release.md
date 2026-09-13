@@ -300,6 +300,23 @@ macOS 13 maps to Darwin 22. The two values use different version domains; do not
 - **Bootstrap caveat.** Clients running a build older than the rollout feature ignore `rolloutHours` and admit immediately. Rollout protection only applies to clients running the rollout-aware version or later.
 - **Up to ~30 min automatic admission latency.** Renderer polls every 30 minutes, so a stable user may take up to that long to be evaluated against the rollout window. Clicking **Check** is manual and bypasses rollout admission.
 
+## Personal fork releases (mobileka/paseo)
+
+The personal fork ships its own macOS channel, separate from the official pipeline above. Nothing here runs upstream, and nothing upstream consumes it.
+
+`Personal Desktop Release` (`.github/workflows/personal-desktop-release.yml`) runs on every push to `personal`, or manually. It builds only macOS arm64, ad-hoc signs the bundle, smoke-tests it, and publishes a GitHub release:
+
+- Tags are `personal-<YYYYMMDD-HHMM>-<shortsha>`. Never `v*`, so the official tag-triggered workflows stay asleep and fork releases cannot collide with official versions.
+- Assets are stable names: `Paseo-arm64.zip` (the app) and `build.json` (version, commit, builtAt, notes, localChanges, sha256). The notes come from the matching CHANGELOG section plus the commits since the previous `personal-*` tag; `scripts/personal-desktop-manifest.mjs` produces both.
+- Builds are unsigned like the local refresh script (`--config.mac.identity=null`), so macOS TCC permissions re-prompt after each update. A manually downloaded zip needs `xattr -dr com.apple.quarantine` once.
+
+The desktop app checks two update sources and installs whichever is newer by `builtAt`:
+
+- the latest `personal-*` GitHub release: `build.json` carries the commit, notes, and sha256, and `Paseo-arm64.zip` is downloaded, hash-checked, extracted with `ditto`, smoke-tested, and staged under `$PASEO_HOME/builds/<version>_<sha>`
+- locally staged builds from `paseo-desktop-refresh.sh`, which remains a fallback when CI is down
+
+Checks run on app open, every 30 minutes, when a local build is staged, and from **Paseo → Check for Updates…**. Installing repoints the `/Applications/Paseo.app` symlink and relaunches; the previous staged build stays as the fallback target.
+
 ## Mobile builds (EAS)
 
 iOS and Android store builds are not in `.github/workflows`. They are triggered by the EAS GitHub app the moment the `v*` tag is pushed:

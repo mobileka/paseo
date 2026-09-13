@@ -3,9 +3,11 @@ import {
   lstatSync,
   readFileSync,
   readlinkSync,
+  renameSync,
   statSync,
   symlinkSync,
   unlinkSync,
+  writeFileSync,
 } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -197,15 +199,41 @@ export function evaluateLocalUpdate({
 }): LocalUpdateEntry | null {
   const latest = state?.latest;
   if (!latest) return null;
-  if (typeof runningCommit === "string" && runningCommit.trim().toLowerCase() === latest.commit) {
-    return null;
+  return isNewerBuild({
+    commit: latest.commit,
+    builtAt: latest.builtAt,
+    runningCommit,
+    runningBuiltAt,
+  })
+    ? latest
+    : null;
+}
+
+/**
+ * The one rule for "this build is an update": a different commit that was
+ * built after the running one. Shared by the local staged builds and the
+ * GitHub release channel so they cannot drift.
+ */
+export function isNewerBuild({
+  commit,
+  builtAt,
+  runningCommit = null,
+  runningBuiltAt = null,
+}: {
+  commit: string;
+  builtAt: string | null;
+  runningCommit?: string | null;
+  runningBuiltAt?: string | null;
+}): boolean {
+  if (typeof runningCommit === "string" && runningCommit.trim().toLowerCase() === commit) {
+    return false;
   }
   const runningTime = parseTime(runningBuiltAt);
-  const candidateTime = parseTime(latest.builtAt);
+  const candidateTime = parseTime(builtAt);
   if (runningTime !== null && candidateTime !== null && candidateTime <= runningTime) {
-    return null;
+    return false;
   }
-  return latest;
+  return true;
 }
 
 export function readLocalUpdateDetails({
@@ -282,6 +310,82 @@ export function readLocalChangelog({
         isRunning: running !== null && entry.commit === running,
       };
     });
+}
+
+export interface LocalUpdateEntryInput {
+  folder: string;
+  commit: string;
+  version: string;
+  builtAt: string;
+}
+
+export interface LocalBuildDetails {
+  version: string;
+  commit: string;
+  builtAt: string;
+  notes: string | null;
+  localChanges: string | null;
+}
+
+type WriteFn = (filePath: string, contents: string) => void;
+
+function writeFileAtomic(filePath: string, contents: string): void {
+  const tempPath = `${filePath}.${process.pid}.tmp`;
+  writeFileSync(tempPath, contents);
+  renameSync(tempPath, filePath);
+}
+
+function toEntryInput(entry: LocalUpdateEntry): LocalUpdateEntryInput {
+  return {
+    folder: entry.folder,
+    commit: entry.commit,
+    version: entry.version,
+    builtAt: entry.builtAt,
+  };
+}
+
+/**
+ * Records the staged build the app should offer next. The previous entry is
+ * kept only while its bundle still exists, so a rollback target is never a
+ * dangling path. The local refresh script writes the same shape.
+ */
+export function writeLocalUpdateState({
+  buildsDir,
+  latest,
+  readFile = readFileSync,
+  exists = existsSync,
+  write = writeFileAtomic,
+}: {
+  buildsDir: string;
+  latest: LocalUpdateEntryInput;
+  readFile?: ReadFileFn;
+  exists?: ExistsFn;
+  write?: WriteFn;
+}): void {
+  const previousState = readLocalUpdateState({ buildsDir, readFile, exists });
+  const previousLatest = previousState?.latest ?? null;
+  const keepPrevious =
+    previousLatest !== null &&
+    previousLatest.folder !== latest.folder &&
+    exists(previousLatest.appPath);
+  const state = {
+    latest,
+    previous: keepPrevious ? toEntryInput(previousLatest) : null,
+    updatedAt: latest.builtAt,
+  };
+  write(path.join(buildsDir, STATE_FILE_NAME), `${JSON.stringify(state, null, 2)}\n`);
+}
+
+export function writeLocalBuildDetails({
+  folderPath,
+  details,
+  write = writeFileSync,
+}: {
+  folderPath: string;
+  details: LocalBuildDetails;
+  write?: WriteFn;
+}): void {
+  write(path.join(folderPath, BUILD_FILE_NAME), `${JSON.stringify(details, null, 2)}\n`);
 }
 
 export interface ApplicationsLinkStatus {

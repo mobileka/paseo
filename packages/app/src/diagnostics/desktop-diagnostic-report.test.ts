@@ -45,6 +45,14 @@ function makeSources(): DesktopDiagnosticSources {
         target: "/paseo/home/builds/0.9.0_abcdef1/Paseo.app",
         error: null,
       },
+      github: {
+        repo: "mobileka/paseo",
+        lastCheckedAt: "2026-09-14T11:00:00Z",
+        latestTag: "personal-20260914-1000-bbbbbbb",
+        latestCommit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        lastError: null,
+        hasEtag: true,
+      },
     }),
   };
 }
@@ -105,6 +113,9 @@ describe("desktop diagnostic report", () => {
     expect(report).toContain("Update state file");
     expect(report).toContain('{"latest":{"commit":"abcdef1234567890"}}');
     expect(report).toContain("/paseo/home/builds/0.9.0_abcdef1/Paseo.app");
+    expect(report).toContain("GitHub updates\n  Repository: mobileka/paseo");
+    expect(report).toContain("  Latest release: personal-20260914-1000-bbbbbbb");
+    expect(report).toContain("  Latest commit: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
   });
 
   test("includes the Electron main-process log after the daemon log", async () => {

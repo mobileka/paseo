@@ -11,6 +11,7 @@ import {
 import { useDesktopIpcErrorReporter } from "@/desktop/hooks/desktop-ipc-error";
 import { listenToDesktopEvent } from "@/desktop/electron/events";
 import {
+  AUTO_CHECK_INTERVAL_MS,
   PENDING_RECHECK_MS,
   createDesktopAppUpdater,
   formatStatusText,
@@ -86,17 +87,33 @@ export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
     void checkForUpdates({ intent: "automatic", silent: true });
   }, [checkForUpdates, isDesktopApp]);
 
-  // The main process watches the staged-build state file and pushes this
-  // event within five seconds of a new build being staged.
+  useEffect(() => {
+    if (!isDesktopApp) {
+      return undefined;
+    }
+    const intervalId = setInterval(() => {
+      void checkForUpdates({ intent: "automatic", silent: true });
+    }, AUTO_CHECK_INTERVAL_MS);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [checkForUpdates, isDesktopApp]);
+
+  // The main process pushes this event when a new local build is staged and
+  // when the app menu's Check for Updates… item is used.
   useEffect(() => {
     if (!isDesktopApp) {
       return undefined;
     }
     let disposed = false;
     let dispose: (() => void) | null = null;
-    listenToDesktopEvent("check-for-updates", () => {
-      void checkForUpdates({ intent: "automatic", silent: true });
-    })
+    listenToDesktopEvent<{ intent?: DesktopAppUpdateCheckIntent } | null>(
+      "check-for-updates",
+      (payload) => {
+        const intent = payload?.intent === "manual" ? "manual" : "automatic";
+        void checkForUpdates({ intent, silent: intent === "automatic" });
+      },
+    )
       .then((unlisten) => {
         if (disposed) {
           unlisten();
