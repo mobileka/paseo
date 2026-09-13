@@ -80,43 +80,47 @@ describe("desktop-updates helpers", () => {
     });
   });
 
-  it("builds copyable daemon update diagnostics", async () => {
-    const { buildDaemonUpdateDiagnostics } = await loadModuleForPlatform("web");
-    const diagnostics = buildDaemonUpdateDiagnostics({
-      exitCode: 1,
-      stdout: "stdout text",
-      stderr: "stderr text",
-    });
-
-    expect(diagnostics).toContain("Exit code: 1");
-    expect(diagnostics).toContain("STDOUT:\nstdout text");
-    expect(diagnostics).toContain("STDERR:\nstderr text");
-  });
-
-  it("parses runtime info defensively", async () => {
-    const { parseDesktopRuntimeInfo } = await loadModuleForPlatform("web");
+  it("parses local changelog entries defensively", async () => {
+    const { parseLocalChangelog } = await loadModuleForPlatform("web");
 
     expect(
-      parseDesktopRuntimeInfo({
-        appVersion: " 0.1.64 ",
-        runningUnderARM64Translation: true,
-      }),
-    ).toEqual({
-      appVersion: "0.1.64",
-      runningUnderARM64Translation: true,
-    });
-    expect(parseDesktopRuntimeInfo(null)).toEqual({
-      appVersion: null,
-      runningUnderARM64Translation: false,
-    });
+      parseLocalChangelog([
+        {
+          version: "0.9.0",
+          commit: "abcdef1234567890",
+          builtAt: "2026-09-12T10:00:00Z",
+          notes: "## [0.9.0]\n\n- new thing",
+          localChanges: "- feat: thing (abcdef1)",
+          isRunning: true,
+        },
+        { version: "0.8.0" },
+        { noVersion: true },
+        "not an object",
+      ]),
+    ).toEqual([
+      {
+        version: "0.9.0",
+        commit: "abcdef1234567890",
+        builtAt: "2026-09-12T10:00:00Z",
+        notes: "## [0.9.0]\n\n- new thing",
+        localChanges: "- feat: thing (abcdef1)",
+        isRunning: true,
+      },
+      {
+        version: "0.8.0",
+        commit: "",
+        builtAt: "",
+        notes: null,
+        localChanges: null,
+        isRunning: false,
+      },
+    ]);
   });
 
-  it("builds the direct Apple Silicon DMG URL from a version", async () => {
-    const { buildMacAppleSiliconDownloadUrl } = await loadModuleForPlatform("web");
+  it("returns no entries for a non-array response", async () => {
+    const { parseLocalChangelog } = await loadModuleForPlatform("web");
 
-    expect(buildMacAppleSiliconDownloadUrl("v0.1.64")).toBe(
-      "https://github.com/getpaseo/paseo/releases/download/v0.1.64/Paseo-0.1.64-arm64.dmg",
-    );
-    expect(buildMacAppleSiliconDownloadUrl(null)).toBeNull();
+    expect(parseLocalChangelog(null)).toEqual([]);
+    expect(parseLocalChangelog({ entries: [] })).toEqual([]);
   });
 });

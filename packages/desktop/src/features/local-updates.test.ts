@@ -7,6 +7,7 @@ import {
   BUILD_FILE_NAME,
   evaluateLocalUpdate,
   readBuildMetadata,
+  readLocalChangelog,
   readLocalUpdateDetails,
   readLocalUpdateState,
   readLocalUpdateStateSignature,
@@ -205,6 +206,72 @@ describe("readLocalUpdateDetails", () => {
     expect(
       readLocalUpdateDetails({ folderPath: "/fake/build", readFile: () => "nope" }),
     ).toBeNull();
+  });
+});
+
+describe("readLocalChangelog", () => {
+  it("returns staged builds newest first with notes, local changes, and the running flag", () => {
+    const buildsDir = "/fake/builds";
+    const files: Record<string, string> = {
+      [path.join(buildsDir, STATE_FILE_NAME)]: JSON.stringify({
+        latest: LATEST_ENTRY.latest,
+        previous: {
+          folder: "0.8.0_1111111",
+          commit: "1111111222233334",
+          version: "0.8.0",
+          builtAt: "2026-09-01T10:00:00Z",
+        },
+      }),
+      [path.join(buildsDir, "0.9.0_abcdef1", BUILD_FILE_NAME)]: JSON.stringify({
+        notes: "## [0.9.0] - 2026-09-12\n\n- new thing",
+        localChanges: "- feat: thing (abcdef1)",
+      }),
+      [path.join(buildsDir, "0.8.0_1111111", BUILD_FILE_NAME)]: JSON.stringify({
+        notes: "## [0.8.0] - 2026-09-01",
+        localChanges: "- fix: old (1111111)",
+      }),
+    };
+
+    expect(
+      readLocalChangelog({
+        buildsDir,
+        runningCommit: "ABCDEF1234567890",
+        readFile: (filePath) => {
+          const contents = files[filePath];
+          if (contents === undefined) throw new Error("ENOENT");
+          return contents;
+        },
+        exists: () => true,
+      }),
+    ).toEqual([
+      {
+        version: "0.9.0",
+        commit: "abcdef1234567890",
+        builtAt: "2026-09-12T10:00:00Z",
+        notes: "## [0.9.0] - 2026-09-12\n\n- new thing",
+        localChanges: "- feat: thing (abcdef1)",
+        isRunning: true,
+      },
+      {
+        version: "0.8.0",
+        commit: "1111111222233334",
+        builtAt: "2026-09-01T10:00:00Z",
+        notes: "## [0.8.0] - 2026-09-01",
+        localChanges: "- fix: old (1111111)",
+        isRunning: false,
+      },
+    ]);
+  });
+
+  it("returns an empty list without state", () => {
+    expect(
+      readLocalChangelog({
+        buildsDir: "/fake/builds",
+        readFile: () => {
+          throw new Error("ENOENT");
+        },
+      }),
+    ).toEqual([]);
   });
 });
 

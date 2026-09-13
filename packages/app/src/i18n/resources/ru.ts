@@ -1067,7 +1067,6 @@ export const ru: TranslationResources = {
     title: "Что нового",
     installed: "Установлена",
     showMore: "Показать ещё",
-    openWebsite: "Полный список изменений",
     error: {
       title: "Не удалось загрузить список изменений",
       description: "Проверьте подключение и попробуйте снова.",
@@ -1388,13 +1387,6 @@ export const ru: TranslationResources = {
     settings: {
       loadFailed: "Не удалось загрузить настройки настольного приложения.",
       saveFailed: "Не удалось сохранить настройки настольного приложения.",
-    },
-    rosetta: {
-      title: "Загрузите сборку Apple Silicon",
-      runningIntel: "Вы используете сборку Paseo для Intel через Rosetta на Apple Silicon.",
-      highCpu:
-        "Из-за этого процессор сильно загружен. Чтобы устранить проблему, скачайте сборку для Apple Silicon.",
-      download: "Скачать",
     },
     permissions: {
       notifications: {

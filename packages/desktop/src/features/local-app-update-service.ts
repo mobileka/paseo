@@ -6,12 +6,14 @@ import {
   evaluateLocalUpdate,
   readApplicationsLinkStatus,
   readBuildMetadata,
+  readLocalChangelog,
   readLocalUpdateDetails,
   readLocalUpdateState,
   repointApplicationsLink,
   resolveLocalBuildsDir,
   MAC_APP_LINK,
   type ApplicationsLinkStatus,
+  type LocalChangelogEntry,
   type LocalUpdateBuildMetadata,
   type LocalUpdateDetails,
   type LocalUpdateState,
@@ -23,6 +25,7 @@ export interface AppUpdateCheckResult {
   currentVersion: string;
   latestVersion: string | null;
   body: string | null;
+  localChanges: string | null;
   date: string | null;
   errorMessage: string | null;
 }
@@ -51,6 +54,7 @@ export interface LocalAppUpdateLogger {
 export interface LocalAppUpdateIo {
   readState: () => LocalUpdateState | null;
   readDetails: (folderPath: string) => LocalUpdateDetails | null;
+  readChangelog: () => LocalChangelogEntry[];
   getLinkStatus: () => ApplicationsLinkStatus;
 }
 
@@ -91,6 +95,7 @@ export function createLocalAppUpdateService(deps: LocalAppUpdateDeps) {
       currentVersion: input.currentVersion,
       latestVersion: null,
       body: null,
+      localChanges: null,
       date: null,
       errorMessage: null,
     };
@@ -105,15 +110,13 @@ export function createLocalAppUpdateService(deps: LocalAppUpdateDeps) {
 
     const linkStatus = deps.io.getLinkStatus();
     const details = deps.io.readDetails(path.dirname(update.appPath));
-    const body = [details?.notes ?? null, details?.localChanges ?? null]
-      .filter((part): part is string => part !== null)
-      .join("\n\n");
     return {
       hasUpdate: true,
       readyToInstall: linkStatus.error === null,
       currentVersion: input.currentVersion,
       latestVersion: update.version || null,
-      body: body || null,
+      body: details?.notes ?? null,
+      localChanges: details?.localChanges ?? null,
       date: update.builtAt || null,
       errorMessage: linkStatus.error,
     };
@@ -172,7 +175,20 @@ export function createLocalAppUpdateService(deps: LocalAppUpdateDeps) {
     });
   }
 
-  return { checkForAppUpdate, installAppUpdate, getUpdateDiagnostics, isEnabled: () => enabled };
+  function getChangelog(): LocalChangelogEntry[] {
+    if (!enabled) {
+      return [];
+    }
+    return deps.io.readChangelog();
+  }
+
+  return {
+    checkForAppUpdate,
+    installAppUpdate,
+    getChangelog,
+    getUpdateDiagnostics,
+    isEnabled: () => enabled,
+  };
 }
 
 export function resolveDefaultLocalBuildsDir(): string {
@@ -184,17 +200,20 @@ export function resolveDefaultLocalBuildsDir(): string {
 
 export function createDefaultLocalAppUpdateService() {
   const paseoHome = resolvePaseoHome(process.env);
+  const buildsDir = resolveDefaultLocalBuildsDir();
+  const buildMetadata = readBuildMetadata({ appPath: app.getAppPath() });
   return createLocalAppUpdateService({
     environment: {
       isPackaged: app.isPackaged,
       platform: process.platform,
-      buildMetadata: readBuildMetadata({ appPath: app.getAppPath() }),
+      buildMetadata,
     },
-    buildsDir: resolveDefaultLocalBuildsDir(),
+    buildsDir,
     paseoHome,
     io: {
-      readState: () => readLocalUpdateState({ buildsDir: resolveDefaultLocalBuildsDir() }),
+      readState: () => readLocalUpdateState({ buildsDir }),
       readDetails: (folderPath) => readLocalUpdateDetails({ folderPath }),
+      readChangelog: () => readLocalChangelog({ buildsDir, runningCommit: buildMetadata.buildSha }),
       getLinkStatus: () => readApplicationsLinkStatus({}),
     },
     repointLink: (target) => repointApplicationsLink({ target }),

@@ -648,14 +648,6 @@ describe("translation resources", () => {
     expect(en.desktop.updates.callout.restartWarning).toBe(
       "Upgrading the app will stop running agents and close terminal sessions.",
     );
-    expect(en.desktop.rosetta.title).toBe("Download the Apple Silicon build");
-    expect(en.desktop.rosetta.runningIntel).toBe(
-      "You're running the Intel build of Paseo under Rosetta on Apple Silicon.",
-    );
-    expect(en.desktop.rosetta.highCpu).toBe(
-      "This causes high CPU usage. Download the Apple Silicon build to fix it.",
-    );
-    expect(en.desktop.rosetta.download).toBe("Download");
   });
 
   it("includes desktop permission utility keys for the Batch 4R migration", () => {

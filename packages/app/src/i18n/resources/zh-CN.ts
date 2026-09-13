@@ -1043,7 +1043,6 @@ export const zhCN: TranslationResources = {
     title: "新功能",
     installed: "已安装",
     showMore: "显示更多",
-    openWebsite: "完整更新日志",
     error: {
       title: "无法加载更新日志",
       description: "请检查网络连接后重试。",
@@ -1352,12 +1351,6 @@ export const zhCN: TranslationResources = {
     settings: {
       loadFailed: "无法加载桌面设置。",
       saveFailed: "无法保存桌面设置。",
-    },
-    rosetta: {
-      title: "下载 Apple Silicon 构建",
-      runningIntel: "你正在 Apple Silicon 上通过 Rosetta 运行 Paseo 的 Intel 构建。",
-      highCpu: "这会导致较高 CPU 使用率。下载 Apple Silicon 构建即可修复。",
-      download: "下载",
     },
     permissions: {
       notifications: {

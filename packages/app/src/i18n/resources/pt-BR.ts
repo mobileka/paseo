@@ -1076,7 +1076,6 @@ export const ptBR: TranslationResources = {
     title: "Novidades",
     installed: "Instalada",
     showMore: "Mostrar mais",
-    openWebsite: "Changelog completo",
     error: {
       title: "Não foi possível carregar o changelog",
       description: "Verifique sua conexão e tente novamente.",
@@ -1394,12 +1393,6 @@ export const ptBR: TranslationResources = {
     settings: {
       loadFailed: "Não foi possível carregar as configurações do desktop.",
       saveFailed: "Não foi possível salvar as configurações do desktop.",
-    },
-    rosetta: {
-      title: "Baixar a build para Apple Silicon",
-      runningIntel: "Você está executando a build Intel do Paseo pelo Rosetta no Apple Silicon.",
-      highCpu: "Isso causa alto uso de CPU. Baixe a build para Apple Silicon para corrigir.",
-      download: "Baixar",
     },
     permissions: {
       notifications: {

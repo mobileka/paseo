@@ -75,9 +75,7 @@ function launchDesktop(args: string[]): void {
 
   const desktopApp = findDesktopApp();
   if (!desktopApp) {
-    throw new Error(
-      "Paseo desktop app not found. Install it from https://github.com/getpaseo/paseo/releases",
-    );
+    throw new Error("Paseo desktop app not found. Build and install the desktop app first.");
   }
 
   if (process.platform === "darwin") {

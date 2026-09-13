@@ -1051,7 +1051,6 @@ export const ar: TranslationResources = {
     title: "ما الجديد",
     installed: "مثبّت",
     showMore: "عرض المزيد",
-    openWebsite: "سجل التغييرات الكامل",
     error: {
       title: "تعذّر تحميل سجل التغييرات",
       description: "تحقق من اتصالك وحاول مرة أخرى.",
@@ -1365,13 +1364,6 @@ export const ar: TranslationResources = {
     settings: {
       loadFailed: "غير قادر على تحميل إعدادات سطح المكتب.",
       saveFailed: "غير قادر على حفظ إعدادات سطح المكتب.",
-    },
-    rosetta: {
-      title: "قم بتنزيل نسخة Apple Silicon",
-      runningIntel: "أنت تقوم بتشغيل إصدار Intel من Paseo ضمن Rosetta على Apple Silicon.",
-      highCpu:
-        "يؤدي هذا إلى ارتفاع استخدام وحدة المعالجة المركزية. قم بتنزيل إصدار Apple Silicon لإصلاحه.",
-      download: "تحميل",
     },
     permissions: {
       notifications: {

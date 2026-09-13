@@ -1060,10 +1060,14 @@ export const en = {
     title: "What's new",
     installed: "Installed",
     showMore: "Show more",
-    openWebsite: "Full changelog",
+    localChanges: "Local changes",
+    empty: {
+      title: "No local builds yet",
+      description: "Builds staged on this Mac show their release notes and local changes here.",
+    },
     error: {
       title: "Unable to load the changelog",
-      description: "Check your connection and try again.",
+      description: "The local build list could not be read. Try again.",
     },
   },
   sidebar: {
@@ -1391,12 +1395,6 @@ export const en = {
     settings: {
       loadFailed: "Unable to load desktop settings.",
       saveFailed: "Unable to save desktop settings.",
-    },
-    rosetta: {
-      title: "Download the Apple Silicon build",
-      runningIntel: "You're running the Intel build of Paseo under Rosetta on Apple Silicon.",
-      highCpu: "This causes high CPU usage. Download the Apple Silicon build to fix it.",
-      download: "Download",
     },
     permissions: {
       notifications: {

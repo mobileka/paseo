@@ -38,6 +38,7 @@ function buildCheckResult(
     currentVersion: null,
     latestVersion: null,
     body: null,
+    localChanges: null,
     date: null,
     errorMessage: null,
     ...overrides,
