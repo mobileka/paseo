@@ -105,20 +105,28 @@ jobs:
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
           set -euo pipefail
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release upload "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --clobber \
-              release-assets/Paseo-arm64.zip \
-              release-assets/build.json
-            gh release edit "$TAG" \
-              --repo "$GITHUB_REPOSITORY" \
-              --notes-file release-assets/release-notes.md
-          else
-            gh release create "$TAG" \
+          for attempt in 1 2 3 4 5; do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+              if gh release upload "$TAG" \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --clobber \
+                  release-assets/Paseo-arm64.zip \
+                  release-assets/build.json &&
+                gh release edit "$TAG" \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --notes-file release-assets/release-notes.md; then
+                exit 0
+              fi
+            elif gh release create "$TAG" \
               --repo "$GITHUB_REPOSITORY" \
               --title "Paseo personal ${{ steps.meta.outputs.short_sha }}" \
               --notes-file release-assets/release-notes.md \
               release-assets/Paseo-arm64.zip \
-              release-assets/build.json
-          fi
+              release-assets/build.json; then
+              exit 0
+            fi
+            echo "::warning::Release publish attempt $attempt failed; retrying in 10s"
+            sleep 10
+          done
+          echo "::error::Failed to publish release $TAG after 5 attempts"
+          exit 1
