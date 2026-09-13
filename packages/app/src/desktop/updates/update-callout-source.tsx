@@ -6,6 +6,7 @@ import {
   type SidebarCalloutAction,
   SidebarCalloutDescriptionText,
 } from "@/components/sidebar-callout";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { useSidebarCallouts } from "@/contexts/sidebar-callout-context";
 import {
   resolveUpdateCalloutDescriptor,
@@ -17,9 +18,23 @@ import { useStableEvent } from "@/hooks/use-stable-event";
 import { openChangelog } from "@/changelog";
 
 function renderBody(body: UpdateCalloutBody, t: ReturnType<typeof useTranslation>["t"]): ReactNode {
-  if (body.kind === "installing") return t("desktop.updates.callout.installingDescription");
+  if (body.kind === "installing") {
+    if (body.progress !== null && body.progress < 100) {
+      return <UpdateProgressDescription progress={body.progress} />;
+    }
+    return t("desktop.updates.callout.installingDescription");
+  }
   if (body.kind === "error") return body.message;
   return <UpdateAvailableDescription versionLabel={body.versionLabel ?? undefined} t={t} />;
+}
+
+function UpdateProgressDescription({ progress }: { progress: number }) {
+  return (
+    <>
+      <ProgressBar value={progress} />
+      <SidebarCalloutDescriptionText>{`${Math.round(progress)}%`}</SidebarCalloutDescriptionText>
+    </>
+  );
 }
 
 function materializeActions(
@@ -43,6 +58,7 @@ export function UpdateCalloutSource() {
     status,
     availableUpdate,
     errorMessage,
+    installProgress,
     checkForUpdates,
     installUpdate,
     isInstalling,
@@ -67,6 +83,7 @@ export function UpdateCalloutSource() {
       isInstalling,
       availableUpdate,
       errorMessage,
+      installProgressPercent: installProgress?.percent ?? null,
     });
     if (!descriptor) return;
 
@@ -92,6 +109,7 @@ export function UpdateCalloutSource() {
     callouts,
     errorMessage,
     install,
+    installProgress,
     isDesktopApp,
     isInstalling,
     retry,

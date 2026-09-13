@@ -63,9 +63,15 @@ test("accepts bracket, link, and v-prefixed headings", () => {
   );
 });
 
+test("falls back to the base version for a personal fork version", () => {
+  const notes = extractReleaseNotes(CHANGELOG, "0.8.0-personal.3");
+  assert.ok(notes?.startsWith("## 0.8.0 - 2026-09-10"));
+});
+
 test("returns null when the version has no section", () => {
   assert.equal(extractReleaseNotes(CHANGELOG, "9.9.9"), null);
   assert.equal(extractReleaseNotes(CHANGELOG, "not-a-version"), null);
+  assert.equal(extractReleaseNotes(CHANGELOG, "9.9.9-personal.1"), null);
 });
 
 test("does not treat ### section headings as release headings", () => {

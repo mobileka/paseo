@@ -8,6 +8,7 @@ interface ShowContextMenuInput {
 
 interface ApplicationMenuOptions {
   onNewWindow: () => void;
+  onCheckForUpdates: () => void;
 }
 
 function withBrowserWindow(
@@ -81,8 +82,7 @@ function buildApplicationMenuTemplate(
               {
                 label: "Check for Updates…",
                 click: () => {
-                  const win = BrowserWindow.getFocusedWindow();
-                  win?.webContents.send("paseo:event:check-for-updates", { intent: "manual" });
+                  options.onCheckForUpdates();
                 },
               },
               { type: "separator" as const },

@@ -17,6 +17,7 @@ import {
   pruneLocalBuilds,
   resolveBuildFolderName,
   stageGithubRelease,
+  type GithubDownloadProgress,
   type GithubInstallIo,
 } from "./github-install";
 
@@ -92,6 +93,42 @@ describe("resolveBuildFolderName", () => {
 });
 
 describe("stageGithubRelease", () => {
+  it("forwards download progress and the declared size to the install io", async () => {
+    const buildsDir = makeTempBuildsDir();
+    const zipBytes = "0123456789";
+    const seenTotalBytes: number[] = [];
+    const io: GithubInstallIo = {
+      download: async ({ destination, totalBytes, onProgress }) => {
+        seenTotalBytes.push(totalBytes ?? 0);
+        onProgress?.({ receivedBytes: 5, totalBytes: totalBytes ?? 0 });
+        writeFileSync(destination, zipBytes);
+        onProgress?.({ receivedBytes: zipBytes.length, totalBytes: totalBytes ?? 0 });
+      },
+      extractZip: fakeIo().extractZip,
+      smokeTest: async () => undefined,
+    };
+    const progress: GithubDownloadProgress[] = [];
+
+    await stageGithubRelease({
+      buildsDir,
+      candidate: makeCandidate({
+        zipAsset: {
+          name: "Paseo-arm64.zip",
+          downloadUrl: "https://example.test/Paseo-arm64.zip",
+          size: zipBytes.length,
+        },
+      }),
+      io,
+      onProgress: (update) => progress.push(update),
+    });
+
+    expect(seenTotalBytes).toEqual([zipBytes.length]);
+    expect(progress).toEqual([
+      { receivedBytes: 5, totalBytes: 10 },
+      { receivedBytes: 10, totalBytes: 10 },
+    ]);
+  });
+
   it("stages the app, writes build.json and state.json", async () => {
     const buildsDir = makeTempBuildsDir();
     const staged = await stageGithubRelease({

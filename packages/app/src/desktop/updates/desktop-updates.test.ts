@@ -135,4 +135,28 @@ describe("desktop-updates helpers", () => {
     expect(parseLocalChangelog(null)).toEqual([]);
     expect(parseLocalChangelog({ entries: [] })).toEqual([]);
   });
+
+  it("parses desktop update download progress", async () => {
+    const { parseDesktopAppUpdateProgress } = await loadModuleForPlatform("web");
+
+    expect(
+      parseDesktopAppUpdateProgress({ percent: 42, receivedBytes: 100, totalBytes: 250 }),
+    ).toEqual({ percent: 42, receivedBytes: 100, totalBytes: 250 });
+    expect(parseDesktopAppUpdateProgress({ receivedBytes: 100, totalBytes: 250 })).toEqual({
+      percent: null,
+      receivedBytes: 100,
+      totalBytes: 250,
+    });
+    expect(
+      parseDesktopAppUpdateProgress({ percent: 150, receivedBytes: 250, totalBytes: 250 }),
+    ).toEqual({ percent: 100, receivedBytes: 250, totalBytes: 250 });
+  });
+
+  it("rejects malformed desktop update progress", async () => {
+    const { parseDesktopAppUpdateProgress } = await loadModuleForPlatform("web");
+
+    expect(parseDesktopAppUpdateProgress(null)).toBeNull();
+    expect(parseDesktopAppUpdateProgress({ percent: 10 })).toBeNull();
+    expect(parseDesktopAppUpdateProgress({ receivedBytes: Number.NaN, totalBytes: 10 })).toBeNull();
+  });
 });

@@ -4,7 +4,7 @@ import { i18n } from "@/i18n/i18next";
 
 export type UpdateCalloutBody =
   | { kind: "available"; versionLabel: string | null }
-  | { kind: "installing" }
+  | { kind: "installing"; progress: number | null }
   | { kind: "error"; message: string };
 
 export type UpdateCalloutActionRole = "changelog" | "install" | "retry";
@@ -34,6 +34,7 @@ export interface ResolveUpdateCalloutInput {
   isInstalling: boolean;
   availableUpdate: { latestVersion?: string | null; targetCommit?: string | null } | null;
   errorMessage: string | null;
+  installProgressPercent?: number | null;
 }
 
 export function resolveUpdateCalloutDescriptor(
@@ -60,7 +61,7 @@ export function resolveUpdateCalloutDescriptor(
   let body: UpdateCalloutBody;
   if (isInstalling) {
     title = i18n.t("desktop.updates.callout.installingTitle");
-    body = { kind: "installing" };
+    body = { kind: "installing", progress: input.installProgressPercent ?? null };
   } else if (isError) {
     title = i18n.t("desktop.updates.callout.failedTitle");
     body = {

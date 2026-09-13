@@ -3,10 +3,12 @@ import {
   checkDesktopAppUpdate,
   formatBuildLabel,
   installDesktopAppUpdate,
+  parseDesktopAppUpdateProgress,
   shouldShowDesktopUpdateSection,
   type DesktopAppUpdateCheckResult,
   type DesktopAppUpdateCheckIntent,
   type DesktopAppUpdateInstallResult,
+  type DesktopAppUpdateProgress,
 } from "@/desktop/updates/desktop-updates";
 import { useDesktopIpcErrorReporter } from "@/desktop/hooks/desktop-ipc-error";
 import { listenToDesktopEvent } from "@/desktop/electron/events";
@@ -27,6 +29,7 @@ export interface UseDesktopAppUpdaterReturn {
   statusText: string;
   availableUpdate: DesktopAppUpdateCheckResult | null;
   errorMessage: string | null;
+  installProgress: DesktopAppUpdateProgress | null;
   lastCheckedAt: number | null;
   isChecking: boolean;
   isInstalling: boolean;
@@ -132,6 +135,32 @@ export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
   }, [checkForUpdates, isDesktopApp]);
 
   useEffect(() => {
+    if (!isDesktopApp) {
+      return undefined;
+    }
+    let disposed = false;
+    let dispose: (() => void) | null = null;
+    listenToDesktopEvent<unknown>("app-update-progress", (payload) => {
+      updater.setInstallProgress(parseDesktopAppUpdateProgress(payload));
+    })
+      .then((unlisten) => {
+        if (disposed) {
+          unlisten();
+          return null;
+        }
+        dispose = unlisten;
+        return null;
+      })
+      .catch(() => {
+        // The desktop event API is unavailable outside the packaged app.
+      });
+    return () => {
+      disposed = true;
+      dispose?.();
+    };
+  }, [updater, isDesktopApp]);
+
+  useEffect(() => {
     if (!isDesktopApp || snapshot.status !== "pending") {
       return undefined;
     }
@@ -158,6 +187,7 @@ export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
     }),
     availableUpdate: snapshot.availableUpdate,
     errorMessage: snapshot.errorMessage,
+    installProgress: snapshot.installProgress,
     lastCheckedAt: snapshot.lastCheckedAt,
     isChecking: snapshot.isChecking,
     isInstalling: snapshot.isInstalling,

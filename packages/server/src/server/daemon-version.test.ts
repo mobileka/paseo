@@ -62,3 +62,37 @@ describe("resolveDaemonVersion", () => {
     expect(() => resolveDaemonVersion(moduleUrl)).toThrow(DaemonVersionResolutionError);
   });
 });
+
+describe("resolveDaemonVersion override", () => {
+  const previous = process.env.PASEO_DAEMON_VERSION;
+
+  afterEach(() => {
+    if (previous === undefined) {
+      delete process.env.PASEO_DAEMON_VERSION;
+    } else {
+      process.env.PASEO_DAEMON_VERSION = previous;
+    }
+  });
+
+  it("prefers the PASEO_DAEMON_VERSION override over package metadata", () => {
+    process.env.PASEO_DAEMON_VERSION = "0.8.0-personal.3";
+    const moduleUrl = pathToFileURL(path.join(tmpdir(), "missing", "index.js")).href;
+
+    expect(resolveDaemonVersion(moduleUrl)).toBe("0.8.0-personal.3");
+  });
+
+  it("ignores a blank override", () => {
+    process.env.PASEO_DAEMON_VERSION = "   ";
+    const root = createTempDir();
+    writeFileSync(
+      path.join(root, "package.json"),
+      JSON.stringify({ name: "@getpaseo/server", version: "9.8.7" }),
+      "utf8",
+    );
+    const nestedDir = path.join(root, "dist", "server");
+    mkdirSync(nestedDir, { recursive: true });
+
+    const moduleUrl = pathToFileURL(path.join(nestedDir, "index.js")).href;
+    expect(resolveDaemonVersion(moduleUrl)).toBe("9.8.7");
+  });
+});

@@ -26,6 +26,12 @@ export interface DesktopAppUpdateInstallResult {
 
 export type DesktopAppUpdateCheckIntent = "automatic" | "manual";
 
+export interface DesktopAppUpdateProgress {
+  percent: number | null;
+  receivedBytes: number;
+  totalBytes: number;
+}
+
 export interface LocalDaemonVersionResult {
   version: string | null;
   error: string | null;
@@ -70,6 +76,26 @@ export function parseLocalDaemonVersionResult(raw: unknown): LocalDaemonVersionR
     version: toStringOrNull(raw.version),
     error: toStringOrNull(raw.error),
   };
+}
+
+export function parseDesktopAppUpdateProgress(raw: unknown): DesktopAppUpdateProgress | null {
+  if (!isRecord(raw)) {
+    return null;
+  }
+  const receivedBytes =
+    typeof raw.receivedBytes === "number" && Number.isFinite(raw.receivedBytes)
+      ? raw.receivedBytes
+      : null;
+  const totalBytes =
+    typeof raw.totalBytes === "number" && Number.isFinite(raw.totalBytes) ? raw.totalBytes : null;
+  if (receivedBytes === null || totalBytes === null) {
+    return null;
+  }
+  const percent =
+    typeof raw.percent === "number" && Number.isFinite(raw.percent)
+      ? Math.min(100, Math.max(0, raw.percent))
+      : null;
+  return { percent, receivedBytes, totalBytes };
 }
 
 export async function getLocalDaemonVersion(): Promise<LocalDaemonVersionResult> {

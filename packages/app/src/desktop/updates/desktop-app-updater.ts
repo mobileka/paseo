@@ -2,6 +2,7 @@ import type {
   DesktopAppUpdateCheckResult,
   DesktopAppUpdateCheckIntent,
   DesktopAppUpdateInstallResult,
+  DesktopAppUpdateProgress,
 } from "@/desktop/updates/desktop-updates";
 import { i18n } from "@/i18n/i18next";
 
@@ -23,6 +24,7 @@ export interface DesktopAppUpdaterSnapshot {
   availableUpdate: DesktopAppUpdateCheckResult | null;
   errorMessage: string | null;
   installMessage: string | null;
+  installProgress: DesktopAppUpdateProgress | null;
   lastCheckedAt: number | null;
   isChecking: boolean;
   isInstalling: boolean;
@@ -55,6 +57,7 @@ export interface DesktopAppUpdater {
     silent?: boolean;
   }): Promise<DesktopAppUpdateCheckResult | null>;
   installUpdate(): Promise<DesktopAppUpdateInstallResult | null>;
+  setInstallProgress(progress: DesktopAppUpdateProgress | null): void;
 }
 
 interface InternalState {
@@ -62,6 +65,7 @@ interface InternalState {
   availableUpdate: DesktopAppUpdateCheckResult | null;
   errorMessage: string | null;
   installMessage: string | null;
+  installProgress: DesktopAppUpdateProgress | null;
   lastCheckedAt: number | null;
   isInstalling: boolean;
   requestVersion: number;
@@ -72,6 +76,7 @@ const INITIAL_STATE: InternalState = {
   availableUpdate: null,
   errorMessage: null,
   installMessage: null,
+  installProgress: null,
   lastCheckedAt: null,
   isInstalling: false,
   requestVersion: 0,
@@ -83,6 +88,7 @@ function buildSnapshot(state: InternalState): DesktopAppUpdaterSnapshot {
     availableUpdate: state.availableUpdate,
     errorMessage: state.errorMessage,
     installMessage: state.installMessage,
+    installProgress: state.installProgress,
     lastCheckedAt: state.lastCheckedAt,
     isChecking: state.status === "checking",
     isInstalling: state.status === "installing" || state.isInstalling,
@@ -290,6 +296,7 @@ export function createDesktopAppUpdater(deps: DesktopAppUpdaterDeps): DesktopApp
       ...state,
       status: "installing",
       errorMessage: null,
+      installProgress: null,
       isInstalling: true,
     });
 
@@ -304,6 +311,7 @@ export function createDesktopAppUpdater(deps: DesktopAppUpdaterDeps): DesktopApp
           availableUpdate: null,
           errorMessage: result.message || i18n.t("desktop.updates.installError"),
           installMessage: null,
+          installProgress: null,
           lastCheckedAt: nextLastCheckedAt,
           isInstalling: false,
         });
@@ -316,6 +324,7 @@ export function createDesktopAppUpdater(deps: DesktopAppUpdaterDeps): DesktopApp
         availableUpdate: null,
         errorMessage: null,
         installMessage: result.message,
+        installProgress: null,
         lastCheckedAt: nextLastCheckedAt,
         isInstalling: false,
       });
@@ -331,10 +340,18 @@ export function createDesktopAppUpdater(deps: DesktopAppUpdaterDeps): DesktopApp
         ...state,
         status: "error",
         errorMessage: message,
+        installProgress: null,
         isInstalling: false,
       });
       return null;
     }
+  }
+
+  function setInstallProgress(progress: DesktopAppUpdateProgress | null): void {
+    if (state.status !== "installing") {
+      return;
+    }
+    commit({ ...state, installProgress: progress });
   }
 
   return {
@@ -347,5 +364,6 @@ export function createDesktopAppUpdater(deps: DesktopAppUpdaterDeps): DesktopApp
     },
     checkForUpdates,
     installUpdate,
+    setInstallProgress,
   };
 }

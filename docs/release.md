@@ -307,15 +307,16 @@ The personal fork ships its own macOS channel, separate from the official pipeli
 `Personal Desktop Release` (`.github/workflows/personal-desktop-release.yml`) runs on every push to `personal`, or manually. It builds only macOS arm64, ad-hoc signs the bundle, smoke-tests it, and publishes a GitHub release:
 
 - Tags are `personal-<YYYYMMDD-HHMM>-<shortsha>`. Never `v*`, so the official tag-triggered workflows stay asleep and fork releases cannot collide with official versions.
+- Builds carry a fork version `<base>-personal.<N>`: `<base>` is the `packages/desktop` version and `N` is 1 plus the number of `personal-*` tags already reachable from HEAD. Both the CI workflow and the local `build.sh` compute it and inject it at build time (`extraMetadata.version`, `EXPO_PUBLIC_PASEO_APP_VERSION`, `PASEO_DAEMON_VERSION`). Nothing is committed, so the upstream and mobile package versions stay untouched, and the app and its managed daemon report the same string (no version-mismatch restart).
 - Assets are stable names: `Paseo-arm64.zip` (the app) and `build.json` (version, commit, builtAt, notes, localChanges, sha256). The notes come from the matching CHANGELOG section plus the commits since the previous `personal-*` tag; `scripts/personal-desktop-manifest.mjs` produces both.
 - Builds are unsigned like the local refresh script (`--config.mac.identity=null`), so macOS TCC permissions re-prompt after each update. A manually downloaded zip needs `xattr -dr com.apple.quarantine` once.
 
 The desktop app checks two update sources and installs whichever is newer by `builtAt`:
 
 - the latest `personal-*` GitHub release: `build.json` carries the commit, notes, and sha256, and `Paseo-arm64.zip` is downloaded, hash-checked, extracted with `ditto`, smoke-tested, and staged under `$PASEO_HOME/builds/<version>_<sha>`
-- locally staged builds from `paseo-desktop-refresh.sh`, which remains a fallback when CI is down
+- locally staged builds from `paseo/build.sh`, which remains a fallback when CI is down
 
-Checks run on app open, every 30 minutes, when a local build is staged, and from **Paseo → Check for Updates…**. Installing repoints the `/Applications/Paseo.app` symlink and relaunches; the previous staged build stays as the fallback target.
+Checks run on app open, every 30 minutes, when a local build is staged, and from **Paseo → Check for Updates…**. A manual check with nothing to install reports the running version in a dialog instead of staying silent, and a download shows its progress in the update callout. Installing repoints the `/Applications/Paseo.app` symlink and relaunches; the previous staged build stays as the fallback target.
 
 ## Mobile builds (EAS)
 
